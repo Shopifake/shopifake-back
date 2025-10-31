@@ -1,0 +1,33 @@
+{
+  "name": "Shopifake Dev Shell",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "workspaceFolder": "\u002fworkspace",
+  "mounts": [
+    "source=\u002fvar\u002frun\u002fdocker.sock,target=\u002fvar\u002frun\u002fdocker.sock,type=bind"
+  ],
+  "features": {
+    "ghcr.io\u002fdevcontainers\u002ffeatures\u002fdocker-in-docker:2": {},
+    "ghcr.io\u002fdevcontainers\u002ffeatures\u002fpython:1": {
+      "version": "3.12"
+    },
+    "ghcr.io\u002fdevcontainers\u002ffeatures\u002fjava:1": {
+      "version": "21"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "ms-python.python",
+        "ms-azuretools.vscode-docker",
+        "eamodio.gitlens",
+        "github.copilot"
+      ]
+    }
+  },
+  "shutdownAction": "stopContainer"
+}
+
