@@ -25,7 +25,7 @@ Définir les artefacts, responsabilités et étapes du nouveau flux d’orchestr
 ## Promotion dev → staging (manuelle + lock auto)
 
 1. Les développeurs créent manuellement la PR `dev` → `staging`, contenant uniquement les mises à jour des sous-modules et modifications associées.
-2. À l’ouverture, la CI exécute lints/tests et génère automatiquement un lock (SHA Git + tags + digests) stocké comme artefact et/ou commentaire PR.
+2. À l’ouverture, la CI exécute lint, tests unitaires et tests système/intégration (en reconstruisant et démarrant l’ensemble des services nécessaires) puis génère automatiquement un lock (SHA Git + tags + digests) stocké comme artefact et/ou commentaire PR.
 3. La PR est fusionnée manuellement lorsque tous les checks sont verts ; aucune auto-merge n’est configurée.
 4. Lors du merge, le workflow ajoute le lock au dépôt `staging` (commit automatique) pour qu’il devienne la référence des déploiements.
 
@@ -36,7 +36,7 @@ Définir les artefacts, responsabilités et étapes du nouveau flux d’orchestr
    - Récupération du lock ajouté lors du merge (fichier versionné dans `staging`).
    - Validation santé du cluster Staging (API, quotas, dépendances critiques). Si KO, stop.
    - Déploiement via le lock (images figées) déclenché automatiquement après les checks, avec possibilité de relance manuelle (`workflow_dispatch`) si nécessaire.
-   - Exécution de la même suite E2E/système que précédemment mais contre Staging réel (DB Staging, intégrations vivantes).
+   - Exécution de la même suite E2E/système que précédemment mais contre Staging réel (incluant la reconstruction/le démarrage de tous les services requis) pour valider les interactions inter-services.
    - Si succès, création de la PR `staging` → `main` contenant le lock (inchangé).
    - Si échec, pas de PR ; on corrige et on relance le déploiement manuel.
 
