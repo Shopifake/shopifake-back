@@ -1,0 +1,69 @@
+name: System and Integration Tests
+
+on:
+  workflow_call:
+    inputs:
+      compose-file:
+        description: 'Optional docker-compose file to spin up the stack'
+        required: false
+        type: string
+      integration-command:
+        description: 'Command to execute integration tests'
+        required: false
+        type: string
+        default: 'bash scripts/tests/run-integration-tests.sh'
+      system-command:
+        description: 'Command to execute end-to-end/system tests'
+        required: false
+        type: string
+        default: 'bash scripts/tests/run-system-tests.sh'
+
+jobs:
+  system-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build service images
+        run: |
+          set -euo pipefail
+          docker compose -f "${{ inputs.compose-file }}" build --pull
+
+      - name: Start system stack
+        id: start-stack
+        run: |
+          set -euo pipefail
+          docker compose -f "${{ inputs.compose-file }}" up -d --wait
+
+      - name: Run integration tests
+        run: |
+          set -euo pipefail
+          echo "Running integration tests: ${{ inputs.integration-command }}"
+          ${{ inputs.integration-command }}
+
+      - name: Run system tests
+        run: |
+          set -euo pipefail
+          echo "Running system tests: ${{ inputs.system-command }}"
+          ${{ inputs.system-command }}
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          docker compose -f "${{ inputs.compose-file }}" logs || true
+
+      - name: Tear down stack
+        if: always()
+        run: |
+          docker compose -f "${{ inputs.compose-file }}" down -v
+

@@ -1,0 +1,130 @@
+version: "3.9"
+
+x-default-env: &spring-dev
+  SPRING_PROFILES_ACTIVE: dev
+
+services:
+  gateway:
+    build:
+      context: ../services/shopifake-gateway
+      target: dev
+    image: shopifake-gateway:test-local
+    environment:
+      <<: *spring-dev
+    ports:
+      - "8080:8080"
+    depends_on:
+      - access
+      - audit
+      - catalog
+      - customers
+      - inventory
+      - orders
+      - pricing
+      - sales-dashboard
+      - sites
+      - chatbot
+      - recommender
+      - auth-b2c
+      - auth-b2e
+      - bus
+
+
+  access:
+    build:
+      context: ../services/shopifake-access
+      target: dev
+    image: shopifake-access:test-local
+    environment:
+      <<: *spring-dev
+
+  audit:
+    build:
+      context: ../services/shopifake-audit
+      target: dev
+    image: shopifake-audit:test-local
+    environment:
+      <<: *spring-dev
+
+  catalog:
+    build:
+      context: ../services/shopifake-catalog
+      target: dev
+    image: shopifake-catalog:test-local
+    environment:
+      <<: *spring-dev
+
+  customers:
+    build:
+      context: ../services/shopifake-customers
+      target: dev
+    image: shopifake-customers:test-local
+    environment:
+      <<: *spring-dev
+
+  inventory:
+    build:
+      context: ../services/shopifake-inventory
+      target: dev
+    image: shopifake-inventory:test-local
+    environment:
+      <<: *spring-dev
+
+  orders:
+    build:
+      context: ../services/shopifake-orders
+      target: dev
+    image: shopifake-orders:test-local
+    environment:
+      <<: *spring-dev
+
+  pricing:
+    build:
+      context: ../services/shopifake-pricing
+      target: dev
+    image: shopifake-pricing:test-local
+    environment:
+      <<: *spring-dev
+
+  sales-dashboard:
+    build:
+      context: ../services/shopifake-sales-dashboard
+      target: dev
+    image: shopifake-sales-dashboard:test-local
+    environment:
+      <<: *spring-dev
+
+  sites:
+    build:
+      context: ../services/shopifake-sites
+      target: dev
+    image: shopifake-sites:test-local
+    environment:
+      <<: *spring-dev
+
+  chatbot:
+    image: alpine:3.19
+    command: ["sh", "-c", "echo 'TODO: chatbot service'; sleep 3600"]
+    # TODO: replace with real Python chatbot service once template exists
+
+  recommender:
+    image: alpine:3.19
+    command: ["sh", "-c", "echo 'TODO: recommender service'; sleep 3600"]
+    # TODO: replace with actual recommender once implementation is available
+
+  auth-b2c:
+    image: alpine:3.19
+    command: ["sh", "-c", "echo 'TODO: auth-b2c service mock'; sleep 3600"]
+    # TODO: build from ../infra/shopifake-auth-b2c once template ready
+
+  auth-b2e:
+    image: alpine:3.19
+    command: ["sh", "-c", "echo 'TODO: auth-b2e service mock'; sleep 3600"]
+    # TODO: build from ../infra/shopifake-auth-b2e once template ready
+
+  bus:
+    image: alpine:3.19
+    command: ["sh", "-c", "echo 'TODO: message bus mock'; sleep 3600"]
+    # TODO: replace with RabbitMQ instance or mock when infrastructure ready
+
+

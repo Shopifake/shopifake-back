@@ -25,7 +25,7 @@ Document the shared artefacts, responsibilities, and steps for the new CI/CD orc
 ## Promotion dev → staging (manual PR + auto lock)
 
 1. Developers open the `dev` → `staging` PR containing only submodule bumps and related changes.
-2. On PR open, CI runs lint, unit, and system/integration tests (bringing the stack up with the freshly built images when needed) and automatically generates the lock (Git SHAs + tags + digests), publishing it as an artefact and/or PR comment.
+2. On PR open, CI spins up the full stack (via docker compose) and runs integration + system tests, then automatically generates the lock (Git SHAs + tags + digests), publishing it as an artefact and/or PR comment.
 3. The PR is merged manually once all checks pass; no auto-merge.
 4. During merge, the workflow commits the lock to the `staging` branch so it becomes the deployment reference.
 

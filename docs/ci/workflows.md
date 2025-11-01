@@ -1,21 +1,18 @@
 ## GitHub Actions Workflow Structure
 
-> English document. See `docs/ci/workflows.fr.md` for the French version.
-
-This guide lays out the GitHub Actions pipelines we will add to `shopifake-back` to implement the CI/CD flow described in `overview.en.md`.
+This guide lays out the GitHub Actions pipelines we will add to `shopifake-back` to implement the CI/CD flow described in `overview.md`.
 
 ### 1. Workflow `ci-dev-pr.yml`
 
-- **Triggers**: `pull_request` targeting `staging` from `dev`.
+- **Triggers**: `pull_request` targeting `staging` from `dev` (plus manual `workflow_dispatch`).
 - **Goals**:
-  - Validate submodule updates (lint, unit tests, simulated integration tests).
-  - Automatically generate the lock (`locks/<pr-number>.yml`).
+  - Bring up the full stack with docker compose and run integration + system tests.
+  - Generate the lock file (`locks/<pr-number>.yml`).
   - Publish the lock as an artefact and PR comment.
 - **Key jobs**:
-  1. `checkout` + `submodule-sync` (script `scripts/submodules/sync.sh`).
-  2. `lint-and-test`: Maven for Java services, future tox/pytest for Python services, executing both unit and system tests (building + bringing up the required services via Compose/K8s mocks).
-  3. `generate-lock`: Python script exporting Git SHAs, image tags, OCI digests.
-  4. `upload-artifacts` and `comment-lock`.
+  1. `system-tests`: spins up the stack via `compose/system-tests.compose.yml`, then executes `scripts/tests/run-integration-tests.sh` and `scripts/tests/run-system-tests.sh`.
+  2. `generate-lock`: runs `scripts/lock/generate_lock.py` to capture submodule SHAs + image tags.
+  3. `publish-lock`: uploads the lock artefact and posts a PR comment with its contents.
 
 ### 2. Workflow `ci-staging-post-merge.yml`
 
@@ -63,7 +60,7 @@ This guide lays out the GitHub Actions pipelines we will add to `shopifake-back`
 ### 5. Artefacts produced
 
 - `lock`: YAML file + checksum.
-- `reports`: test results (JUnit, coverage, lint).
+- `reports`: test results (JUnit, coverage, lint) – produced by downstream jobs when relevant.
 - `deployment-logs`: Staging/Prod deployment logs for auditing.
 
 ### 6. Manual control points
