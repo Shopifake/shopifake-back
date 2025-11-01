@@ -4,9 +4,6 @@ on:
   pull_request:
     branches:
       - staging
-  push:
-    branches:
-      - feat/cicd
   workflow_dispatch:
 
 permissions:
@@ -28,14 +25,14 @@ jobs:
     needs: integration_tests
     uses: ./.github/workflows/generate-lock.yml
     with:
-      lock-artifact-name: lock-${{ github.event.number || github.run_id }}
-      lock-filename: lock-pr-${{ github.event.number || github.run_id }}.yml
+      lock-artifact-name: lock-${{ github.event.number }}
+      lock-filename: lock-pr-${{ github.event.number }}.yml
 
   publish_lock:
     name: Publish Lock Summary
     needs: generate_lock
     uses: ./.github/workflows/publish-lock.yml
     with:
-      lock-artifact-name: lock-${{ github.event.number || github.run_id }}
-      lock-filename: lock-pr-${{ github.event.number || github.run_id }}.yml
+      lock-artifact-name: lock-${{ github.event.number }}
+      lock-filename: lock-pr-${{ github.event.number }}.yml
 
