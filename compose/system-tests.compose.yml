@@ -6,7 +6,7 @@ x-default-env: &spring-dev
 services:
   gateway:
     build:
-      context: ../services/shopifake-gateway
+      context: ../infra/shopifake-gateway
       target: dev
     image: shopifake-gateway:test-local
     environment:
