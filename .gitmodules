@@ -1,45 +1,45 @@
 [submodule "services/shopifake-access"]
-	path = services/shopifake-access
-	url = git@github.com:Shopifake/shopifake-access.git
+    path = services/shopifake-access
+    url = https://github.com/Shopifake/shopifake-access.git
 [submodule "services/shopifake-customers"]
-	path = services/shopifake-customers
-	url = git@github.com:Shopifake/shopifake-customers.git
+    path = services/shopifake-customers
+    url = https://github.com/Shopifake/shopifake-customers.git
 [submodule "services/shopifake-sites"]
-	path = services/shopifake-sites
-	url = git@github.com:Shopifake/shopifake-sites.git
+    path = services/shopifake-sites
+    url = https://github.com/Shopifake/shopifake-sites.git
 [submodule "services/shopifake-catalog"]
-	path = services/shopifake-catalog
-	url = git@github.com:Shopifake/shopifake-catalog.git
+    path = services/shopifake-catalog
+    url = https://github.com/Shopifake/shopifake-catalog.git
 [submodule "services/shopifake-inventory"]
-	path = services/shopifake-inventory
-	url = git@github.com:Shopifake/shopifake-inventory.git
+    path = services/shopifake-inventory
+    url = https://github.com/Shopifake/shopifake-inventory.git
 [submodule "services/shopifake-pricing"]
-	path = services/shopifake-pricing
-	url = git@github.com:Shopifake/shopifake-pricing.git
+    path = services/shopifake-pricing
+    url = https://github.com/Shopifake/shopifake-pricing.git
 [submodule "services/shopifake-orders"]
-	path = services/shopifake-orders
-	url = git@github.com:Shopifake/shopifake-orders.git
+    path = services/shopifake-orders
+    url = https://github.com/Shopifake/shopifake-orders.git
 [submodule "services/shopifake-audit"]
-	path = services/shopifake-audit
-	url = git@github.com:Shopifake/shopifake-audit.git
+    path = services/shopifake-audit
+    url = https://github.com/Shopifake/shopifake-audit.git
 [submodule "services/shopifake-sales-dashboard"]
-	path = services/shopifake-sales-dashboard
-	url = git@github.com:Shopifake/shopifake-sales-dashboard.git
+    path = services/shopifake-sales-dashboard
+    url = https://github.com/Shopifake/shopifake-sales-dashboard.git
 [submodule "services/shopifake-recommender"]
-	path = services/shopifake-recommender
-	url = git@github.com:Shopifake/shopifake-recommender.git
+    path = services/shopifake-recommender
+    url = https://github.com/Shopifake/shopifake-recommender.git
 [submodule "services/shopifake-chatbot"]
-	path = services/shopifake-chatbot
-	url = git@github.com:Shopifake/shopifake-chatbot.git
+    path = services/shopifake-chatbot
+    url = https://github.com/Shopifake/shopifake-chatbot.git
 [submodule "infra/shopifake-gateway"]
-	path = infra/shopifake-gateway
-	url = git@github.com:Shopifake/shopifake-gateway.git
+    path = infra/shopifake-gateway
+    url = https://github.com/Shopifake/shopifake-gateway.git
 [submodule "infra/shopifake-bus"]
-	path = infra/shopifake-bus
-	url = git@github.com:Shopifake/shopifake-bus.git
+    path = infra/shopifake-bus
+    url = https://github.com/Shopifake/shopifake-bus.git
 [submodule "infra/shopifake-auth-b2e"]
-	path = infra/shopifake-auth-b2e
-	url = git@github.com:Shopifake/shopifake-auth-b2e.git
+    path = infra/shopifake-auth-b2e
+    url = https://github.com/Shopifake/shopifake-auth-b2e.git
 [submodule "infra/shopifake-auth-b2c"]
-	path = infra/shopifake-auth-b2c
-	url = git@github.com:Shopifake/shopifake-auth-b2c.git
+    path = infra/shopifake-auth-b2c
+    url = https://github.com/Shopifake/shopifake-auth-b2c.git
