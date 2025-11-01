@@ -31,6 +31,13 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      - name: Sync submodules
+        run: |
+          set -euo pipefail
+          git config --global url."https://github.com/".insteadOf git@github.com:
+          git submodule sync --recursive
+          git submodule update --init --recursive --depth 1
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
