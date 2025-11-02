@@ -1,0 +1,51 @@
+name: Commit Lock to Staging
+
+on:
+  workflow_call:
+    inputs:
+      lock-artifact-name:
+        description: 'Name of the artifact containing the lock'
+        required: true
+        type: string
+      lock-filename:
+        description: 'Filename of the lock within the artifact'
+        required: true
+        type: string
+
+jobs:
+  commit-lock:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: staging
+          fetch-depth: 0
+
+      - name: Download lock artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.lock-artifact-name }}
+          path: locks
+
+      - name: Copy lock to locks directory
+        run: |
+          set -euo pipefail
+          # Generate a timestamped filename
+          LOCK_FILE="locks/lock-$(date -u +%Y%m%d-%H%M%S).yml"
+          cp "locks/${{ inputs.lock-filename }}" "$LOCK_FILE"
+          echo "Lock committed as: $LOCK_FILE"
+
+      - name: Commit lock to staging
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add locks/lock-*.yml
+          git commit -m "chore: add deployment lock from PR ${{ github.event.number }}" || exit 0
+          git push origin staging
+

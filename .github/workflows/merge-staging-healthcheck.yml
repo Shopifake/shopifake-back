@@ -1,0 +1,20 @@
+name: Staging Cluster Healthcheck
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Environment identifier'
+        required: false
+        type: string
+        default: 'staging'
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run staging health checks
+        run: |
+          echo "TODO: implement health check for ${{ inputs.environment }}"
+          # scripts/cluster/healthcheck.sh --env ${{ inputs.environment }}
+

@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 
-# Placeholder script for integration tests.
-# - Replace commands below with the actual test runner (e.g. Maven, pytest, k6, etc.).
-# - Expect the system stack to be up and reachable (DB, message bus, services).
+# Integration tests script that supports two modes:
+# - local: tests against docker-compose stack (default)
+# - staging: tests against deployed staging environment
 
 set -euo pipefail
 
-echo "[integration-tests] Starting integration test suite..."
+ENV="${ENV}"
+API_BASE_URL="${API_BASE_URL}"
 
-# Example: invoke a Gradle/Maven/pytest suite
-# ./mvnw -pl integration-tests -P integration verify
-# python -m pytest tests/integration
+echo "[integration-tests] Starting integration test suite in $ENV mode..."
 
-echo "[integration-tests] TODO: implement real integration tests"
+if [[ "$ENV" == "staging" ]]; then
+  echo "[integration-tests] Testing against staging at: $API_BASE_URL"
+  # TODO: implement staging integration tests
+  # Example: ./mvnw -pl integration-tests -P staging -Dapi.base.url=$API_BASE_URL verify
+  echo "[integration-tests] TODO: implement real staging integration tests"
+else
+  echo "[integration-tests] Testing against local docker-compose stack"
+  # TODO: implement local integration tests
+  # Example: ./mvnw -pl integration-tests -P local verify
+  echo "[integration-tests] TODO: implement real local integration tests"
+fi
 

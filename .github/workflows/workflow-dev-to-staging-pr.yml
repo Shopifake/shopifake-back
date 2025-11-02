@@ -7,14 +7,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   actions: read
 
 jobs:
   integration_tests:
     name: System & Integration Tests
-    uses: ./.github/workflows/system-tests.yml
+    uses: ./.github/workflows/pr-dev-system-tests.yml
     with:
       compose-file: compose/system-tests.compose.yml
       integration-command: bash scripts/tests/run-integration-tests.sh
@@ -23,7 +23,7 @@ jobs:
   generate_lock:
     name: Generate Lock
     needs: integration_tests
-    uses: ./.github/workflows/generate-lock.yml
+    uses: ./.github/workflows/pr-dev-generate-lock.yml
     with:
       lock-artifact-name: lock-${{ github.event.number }}
       lock-filename: lock-pr-${{ github.event.number }}.yml
@@ -31,7 +31,16 @@ jobs:
   publish_lock:
     name: Publish Lock Summary
     needs: generate_lock
-    uses: ./.github/workflows/publish-lock.yml
+    uses: ./.github/workflows/pr-dev-publish-lock.yml
+    with:
+      lock-artifact-name: lock-${{ github.event.number }}
+      lock-filename: lock-pr-${{ github.event.number }}.yml
+
+  commit_lock:
+    name: Commit Lock to Staging
+    needs: generate_lock
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    uses: ./.github/workflows/pr-dev-commit-lock.yml
     with:
       lock-artifact-name: lock-${{ github.event.number }}
       lock-filename: lock-pr-${{ github.event.number }}.yml

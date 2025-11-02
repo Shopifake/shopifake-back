@@ -24,11 +24,11 @@ This guide lays out the GitHub Actions pipelines we will add to `shopifake-back`
   - Run the E2E suite against the real environment.
   - Create the `staging` → `main` PR when successful.
 - **Key jobs**:
-  1. `prepare`: checkout + lock parsing.
-  2. `staging-healthcheck`: `scripts/cluster/healthcheck.sh --env staging`.
-  3. `deploy-staging`: apply manifests/Helm/ArgoCD with the lock images.
-  4. `e2e-staging`: functional and system tests covering inter-service interactions (stack spun up with the lock images).
-  5. `create-promotion-pr`: open the `staging` → `main` PR carrying the unchanged lock.
+  1. `prepare`: delegates to `staging-prepare.yml` (checkout, locate lock, upload artefact).
+  2. `staging_healthcheck`: delegates to `staging-healthcheck.yml` (cluster checks).
+  3. `deploy_staging`: delegates to `deploy-staging.yml` (apply manifests using the lock).
+  4. `tests_staging`: delegates to `staging-tests.yml` (run staging verification suite).
+  5. `promotion_pr`: delegates to `create-promotion-pr.yml` (open PR `staging` → `main`).
 
 ### 3. Workflow `ci-prod-post-merge.yml`
 

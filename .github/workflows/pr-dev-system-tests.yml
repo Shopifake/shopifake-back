@@ -53,12 +53,16 @@ jobs:
           docker compose -f "${{ inputs.compose-file }}" up -d --wait
 
       - name: Run integration tests
+        env:
+          ENV: local
         run: |
           set -euo pipefail
           echo "Running integration tests: ${{ inputs.integration-command }}"
           ${{ inputs.integration-command }}
 
       - name: Run system tests
+        env:
+          ENV: local
         run: |
           set -euo pipefail
           echo "Running system tests: ${{ inputs.system-command }}"
