@@ -1,0 +1,44 @@
+name: Production Release Tag
+
+on:
+  workflow_call:
+    inputs:
+      lock-path:
+        description: 'Relative path of the lock file in the repository'
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          set -euo pipefail
+          TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
+          RELEASE_TAG="release-${TIMESTAMP}"
+          echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push Git tag
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.tag.outputs.tag }}" -m "Release tagged from ${{ inputs.lock-path }}"
+          git push origin "${{ steps.tag.outputs.tag }}"
+
+      - name: Upload lock artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-lock-${{ steps.tag.outputs.tag }}
+          path: ${{ inputs.lock-path }}
+          retention-days: 365
+

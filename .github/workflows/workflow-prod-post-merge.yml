@@ -1,0 +1,37 @@
+name: CI Production Post Merge
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    uses: ./.github/workflows/merge-prod-prepare.yml
+
+  prod_healthcheck:
+    needs: prepare
+    uses: ./.github/workflows/merge-prod-healthcheck.yml
+
+  deploy_prod:
+    needs:
+      - prepare
+      - prod_healthcheck
+    uses: ./.github/workflows/merge-prod-deploy.yml
+    with:
+      lock-path: ${{ needs.prepare.outputs.lock-path }}
+
+  smoke_tests:
+    needs: deploy_prod
+    uses: ./.github/workflows/merge-prod-smoke-tests.yml
+
+  release_tag:
+    needs: smoke_tests
+    uses: ./.github/workflows/merge-prod-release-tag.yml
+    with:
+      lock-path: ${{ needs.prepare.outputs.lock-path }}
+

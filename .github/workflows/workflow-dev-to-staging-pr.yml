@@ -14,7 +14,7 @@ permissions:
 jobs:
   integration_tests:
     name: System & Integration Tests
-    uses: ./.github/workflows/pr-dev-system-tests.yml
+    uses: ./.github/workflows/pr-dev-tests.yml
     with:
       compose-file: compose/system-tests.compose.yml
       integration-command: bash scripts/tests/run-integration-tests.sh
