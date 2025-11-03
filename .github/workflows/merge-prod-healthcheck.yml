@@ -1,0 +1,14 @@
+name: Production Cluster Healthcheck
+
+on:
+  workflow_call:
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run production health checks
+        run: |
+          echo "TODO: implement health check for production"
+          # scripts/cluster/healthcheck.sh --env prod
+

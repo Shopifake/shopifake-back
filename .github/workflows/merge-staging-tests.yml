@@ -1,0 +1,51 @@
+name: Staging Tests
+
+on:
+  workflow_call:
+    inputs:
+      integration-command:
+        description: 'Command to run staging integration tests'
+        required: false
+        type: string
+        default: 'bash scripts/tests/run-integration-tests.sh'
+      system-command:
+        description: 'Command to run staging system tests'
+        required: false
+        type: string
+        default: 'bash scripts/tests/run-system-tests.sh'
+      load-command:
+        description: 'Command to run staging load tests'
+        required: false
+        type: string
+        default: 'bash scripts/tests/run-load-tests.sh'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run staging integration tests
+        env:
+          ENV: staging
+          API_BASE_URL: ${{ secrets.STAGING_API_URL }}
+        run: |
+          set -euo pipefail
+          ${{ inputs.integration-command }}
+
+      - name: Run staging system tests
+        env:
+          ENV: staging
+          API_BASE_URL: ${{ secrets.STAGING_API_URL }}
+        run: |
+          set -euo pipefail
+          ${{ inputs.system-command }}
+
+      - name: Run staging load tests
+        env:
+          ENV: staging
+          API_BASE_URL: ${{ secrets.STAGING_API_URL }}
+        run: |
+          set -euo pipefail
+          ${{ inputs.load-command }}

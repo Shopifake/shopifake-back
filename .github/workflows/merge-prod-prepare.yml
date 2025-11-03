@@ -1,0 +1,34 @@
+name: Prepare Production Deployment
+
+on:
+  workflow_call:
+    outputs:
+      lock-path:
+        description: "Relative path of the lock file"
+        value: ${{ jobs.prepare.outputs.lock-path }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      lock-path: ${{ steps.discover.outputs.lock-path }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Discover latest lock
+        id: discover
+        run: |
+          set -euo pipefail
+          LOCK_FILE=$(ls locks/lock-*.yml 2>/dev/null | sort | tail -n 1)
+          if [[ -z "$LOCK_FILE" ]]; then
+            echo "No lock file found under locks/." >&2
+            exit 1
+          fi
+          echo "lock-path=$LOCK_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Display lock info
+        run: |
+          echo "Found lock: ${{ steps.discover.outputs.lock-path }}"
+          cat "${{ steps.discover.outputs.lock-path }}"
+

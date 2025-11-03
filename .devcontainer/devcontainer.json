@@ -4,19 +4,20 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
-  "workspaceFolder": "\u002fworkspace",
+  "workspaceFolder": "/workspace",
   "mounts": [
-    "source=\u002fvar\u002frun\u002fdocker.sock,target=\u002fvar\u002frun\u002fdocker.sock,type=bind"
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
   ],
   "features": {
-    "ghcr.io\u002fdevcontainers\u002ffeatures\u002fdocker-in-docker:2": {},
-    "ghcr.io\u002fdevcontainers\u002ffeatures\u002fpython:1": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/python:1": {
       "version": "3.12"
     },
-    "ghcr.io\u002fdevcontainers\u002ffeatures\u002fjava:1": {
+    "ghcr.io/devcontainers/features/java:1": {
       "version": "21"
     }
   },
+  "postStartCommand": "GID=$(stat -c '%g' /var/run/docker.sock) && sudo groupadd --gid $GID docker-host 2>/dev/null || true && sudo usermod -aG docker-host $USER",
   "customizations": {
     "vscode": {
       "extensions": [
