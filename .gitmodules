@@ -43,3 +43,9 @@
 [submodule "infra/shopifake-auth-b2c"]
 	path = infra/shopifake-auth-b2c
 	url = git@github.com:Shopifake/shopifake-auth-b2c.git
+[submodule "infra/shopifake-grafana"]
+	path = infra/shopifake-grafana
+	url = git@github.com:Shopifake/shopifake-grafana.git
+[submodule "infra/shopifake-prometheus"]
+	path = infra/shopifake-prometheus
+	url = git@github.com:Shopifake/shopifake-prometheus.git
