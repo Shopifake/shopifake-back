@@ -1,0 +1,22 @@
+name: Deploy to Staging
+
+on:
+  workflow_call:
+    inputs:
+      lock-path:
+        description: 'Relative path of the lock file in the repository'
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy staging using lock
+        run: |
+          echo "TODO: deploy staging using ${{ inputs.lock-path }}"
+          # scripts/deploy/apply.sh --env staging --lock ${{ inputs.lock-path }}
+

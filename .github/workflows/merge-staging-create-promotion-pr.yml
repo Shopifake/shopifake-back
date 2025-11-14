@@ -1,0 +1,44 @@
+name: Staging Promotion Pull Request
+
+on:
+  workflow_call:
+    inputs:
+      base-branch:
+        description: 'Destination branch for promotion'
+        required: false
+        type: string
+        default: 'main'
+      head-branch:
+        description: 'Branch to merge into base'
+        required: false
+        type: string
+        default: 'staging'
+      title:
+        description: 'PR title'
+        required: false
+        type: string
+        default: 'chore: promote staging to main'
+      body:
+        description: 'PR body'
+        required: false
+        type: string
+        default: 'This PR promotes the latest staging lock to main.'
+
+jobs:
+  promotion:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create promotion PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ inputs.head-branch }}
+          base: ${{ inputs.base-branch }}
+          title: ${{ inputs.title }}
+          body: ${{ inputs.body }}
+

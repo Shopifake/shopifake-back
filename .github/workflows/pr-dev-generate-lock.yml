@@ -1,0 +1,66 @@
+name: Generate Deployment Lock
+
+on:
+  workflow_call:
+    inputs:
+      lock-artifact-name:
+        description: 'Artefact name used to upload the generated lock'
+        required: true
+        type: string
+      lock-filename:
+        description: 'Filename for the generated lock (relative to repo root)'
+        required: true
+        type: string
+      services:
+        description: 'Optional JSON array of service names to include'
+        required: false
+        type: string
+
+jobs:
+  generate-lock:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate lock file
+        id: generate
+        env:
+          LOCK_FILENAME: ${{ inputs.lock-filename }}
+          SERVICES_JSON: ${{ inputs.services }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "${LOCK_FILENAME}")"
+
+          ARGS=()
+          if [[ -n "${SERVICES_JSON}" ]]; then
+            mapfile -t SELECTED < <(echo "${SERVICES_JSON}" | jq -r '.[]')
+            for svc in "${SELECTED[@]}"; do
+              ARGS+=("--services" "$svc")
+            done
+          fi
+
+          python -m scripts.lock.generate_lock \
+            "${ARGS[@]}" \
+            --image-metadata .github/images.json \
+            --output "${LOCK_FILENAME}"
+
+          echo "lock-path=${LOCK_FILENAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload lock artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.lock-artifact-name }}
+          path: ${{ steps.generate.outputs.lock-path }}
+
