@@ -49,3 +49,6 @@
 [submodule "infra/shopifake-prometheus"]
 	path = infra/shopifake-prometheus
 	url = git@github.com:Shopifake/shopifake-prometheus.git
+[submodule "infra/shopifake-otel-collector"]
+	path = infra/shopifake-otel-collector
+	url = git@github.com:Shopifake/shopifake-otel-collector.git
