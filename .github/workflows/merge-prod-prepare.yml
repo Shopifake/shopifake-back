@@ -20,7 +20,8 @@ jobs:
         id: discover
         run: |
           set -euo pipefail
-          LOCK_FILE=$(ls locks/lock-*.yml 2>/dev/null | sort | tail -n 1)
+          # TODO: Consider validating lock file format/content before using it
+          LOCK_FILE=$(find locks/ -maxdepth 1 -name 'lock-*.yml' 2>/dev/null | sort | tail -n 1 || true)
           if [[ -z "$LOCK_FILE" ]]; then
             echo "No lock file found under locks/." >&2
             exit 1
