@@ -17,6 +17,10 @@ jobs:
   staging_healthcheck:
     needs: prepare
     uses: ./.github/workflows/merge-staging-healthcheck.yml
+    with:
+        environment: staging
+    secrets:
+        KUBECONFIG: ${{ secrets.KUBECONFIG }}
 
   deploy_staging:
     needs:
