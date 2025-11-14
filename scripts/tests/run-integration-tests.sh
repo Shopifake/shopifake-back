@@ -7,7 +7,7 @@
 set -euo pipefail
 
 ENV="${ENV}"
-API_BASE_URL="${API_BASE_URL}"
+API_BASE_URL="${API_BASE_URL:localhost}"
 
 echo "[integration-tests] Starting integration test suite in $ENV mode..."
 
