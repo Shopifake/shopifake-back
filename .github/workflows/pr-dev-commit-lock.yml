@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: staging
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: Download lock artifact
