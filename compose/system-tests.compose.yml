@@ -54,13 +54,13 @@ services:
       sites:
         condition: service_healthy
       chatbot:
-        condition: service_started
+        condition: service_healthy
       recommender:
-        condition: service_started
+        condition: service_healthy
       auth-b2c:
-        condition: service_started
+        condition: service_healthy
       auth-b2e:
-        condition: service_started
+        condition: service_healthy
 
   access:
     image: shopifake-access:test-local
@@ -180,24 +180,36 @@ services:
       retries: 5
 
   chatbot:
-    image: alpine:3.19
-    command: ["sh", "-c", "echo 'TODO: chatbot service';"]
-    # TODO: replace with real Python chatbot service once template exists
+    image: shopifake-chatbot:test-local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   recommender:
-    image: alpine:3.19
-    command: ["sh", "-c", "echo 'TODO: recommender service';"]
-    # TODO: replace with actual recommender once implementation is available
+    image: shopifake-recommender:test-local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   auth-b2c:
-    image: alpine:3.19
-    command: ["sh", "-c", "echo 'TODO: auth-b2c service mock';"]
-    # TODO: build from ../infra/shopifake-auth-b2c once template ready
+    image: shopifake-auth-b2c:test-local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   auth-b2e:
-    image: alpine:3.19
-    command: ["sh", "-c", "echo 'TODO: auth-b2e service mock';"]
-    # TODO: build from ../infra/shopifake-auth-b2e once template ready
+    image: shopifake-auth-b2e:test-local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

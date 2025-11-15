@@ -46,6 +46,18 @@
   "shopifake-gateway": {
     "repository": "ghcr.io/shopifake/shopifake-gateway",
     "tag_prefix": "main-"
+  },
+  "shopifake-bus": {
+    "repository": "ghcr.io/shopifake/shopifake-bus",
+    "tag_prefix": "sha-"
+  },
+  "shopifake-auth-b2c": {
+    "repository": "ghcr.io/shopifake/shopifake-auth-b2c",
+    "tag_prefix": "sha-"
+  },
+  "shopifake-auth-b2e": {
+    "repository": "ghcr.io/shopifake/shopifake-auth-b2e",
+    "tag_prefix": "sha-"
   }
 }
 
