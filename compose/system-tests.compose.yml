@@ -61,8 +61,6 @@ services:
         condition: service_started
       auth-b2e:
         condition: service_started
-      bus:
-        condition: service_healthy
 
   access:
     image: shopifake-access:test-local
@@ -183,37 +181,23 @@ services:
 
   chatbot:
     image: alpine:3.19
-    command: ["sh", "-c", "echo 'TODO: chatbot service'; sleep 3600"]
+    command: ["sh", "-c", "echo 'TODO: chatbot service';"]
     # TODO: replace with real Python chatbot service once template exists
 
   recommender:
     image: alpine:3.19
-    command: ["sh", "-c", "echo 'TODO: recommender service'; sleep 3600"]
+    command: ["sh", "-c", "echo 'TODO: recommender service';"]
     # TODO: replace with actual recommender once implementation is available
 
   auth-b2c:
     image: alpine:3.19
-    command: ["sh", "-c", "echo 'TODO: auth-b2c service mock'; sleep 3600"]
+    command: ["sh", "-c", "echo 'TODO: auth-b2c service mock';"]
     # TODO: build from ../infra/shopifake-auth-b2c once template ready
 
   auth-b2e:
     image: alpine:3.19
-    command: ["sh", "-c", "echo 'TODO: auth-b2e service mock'; sleep 3600"]
+    command: ["sh", "-c", "echo 'TODO: auth-b2e service mock';"]
     # TODO: build from ../infra/shopifake-auth-b2e once template ready
-
-  # Message bus - RabbitMQ
-  bus:
-    image: rabbitmq:3-management-alpine
-    environment:
-      RABBITMQ_DEFAULT_USER: testuser
-      RABBITMQ_DEFAULT_PASS: testpass
-    ports:
-      - "15672:15672"  # Management UI
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 volumes:
   postgres_data:

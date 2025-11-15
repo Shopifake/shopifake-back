@@ -53,6 +53,15 @@
   },
   "shopifake-auth-b2e": {
     "repository": "ghcr.io/shopifake/shopifake-auth-b2e"
+  },
+  "shopifake-grafana": {
+    "repository": "ghcr.io/shopifake/shopifake-grafana"
+  },
+  "shopifake-prometheus": {
+    "repository": "ghcr.io/shopifake/shopifake-prometheus"
+  },
+  "shopifake-otel-collector": {
+    "repository": "ghcr.io/shopifake/shopifake-otel-collector"
   }
 }
 
