@@ -35,6 +35,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
+            .github/images.json
             compose/
             scripts/tests/
 
@@ -49,17 +50,14 @@ jobs:
         run: |
           set -euo pipefail
           LOCK_FILE="locks/${{ inputs.lock-filename }}"
+          IMAGES_JSON=".github/images.json"
           
-          # Services to exclude from pulling (infra monitoring/observability)
-          EXCLUDE_SERVICES=("shopifake-prometheus" "shopifake-grafana" "shopifake-otel-collector")
-          EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDE_SERVICES[*]}")
-          
-          # Extract image tags from lock and create image mapping
+          # Extract image tags from lock, filtering only services defined in images.json
+          # This automatically excludes monitoring/infra services without GHCR images
           # Format: SERVICE_NAME=ghcr.io/owner/image:tag
-          # Exclude monitoring/observability services that don't have GHCR images
-          IMAGE_MAP=$(jq -r --arg exclude "$EXCLUDE_PATTERN" '
+          IMAGE_MAP=$(jq -r --slurpfile registry "$IMAGES_JSON" '
             .services | to_entries[] | 
-            select(.key | test($exclude) | not) |
+            select($registry[0][.key] != null) |
             "\(.key | ascii_upcase)=\(.value.image.repository):\(.value.image.tag)"
           ' "$LOCK_FILE")
           
@@ -106,6 +104,7 @@ jobs:
           set -euo pipefail
           # Read lock and generate docker-compose override
           LOCK_FILE="locks/${{ inputs.lock-filename }}"
+          IMAGES_JSON=".github/images.json"
           COMPOSE_OVERRIDE="/tmp/compose-override.yml"
           
           # Create override with image references from lock
@@ -116,13 +115,10 @@ jobs:
           EOF
           
           # Extract images and map to docker-compose service names
-          # Exclude monitoring/observability services (same as pull step)
-          EXCLUDE_SERVICES=("shopifake-prometheus" "shopifake-grafana" "shopifake-otel-collector")
-          EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDE_SERVICES[*]}")
-          
-          jq -r --arg exclude "$EXCLUDE_PATTERN" '
+          # Filter only services defined in images.json (same logic as pull step)
+          jq -r --slurpfile registry "$IMAGES_JSON" '
             .services | to_entries[] | 
-            select(.key | test($exclude) | not) |
+            select($registry[0][.key] != null) |
             "\(.key)\t\(.value.image.repository):\(.value.image.tag)"
           ' "$LOCK_FILE" | while IFS=$'\t' read -r service_name image_ref; do
               # Remove 'shopifake-' prefix for docker-compose service name

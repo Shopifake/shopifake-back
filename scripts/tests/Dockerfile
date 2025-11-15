@@ -7,9 +7,9 @@ RUN apk add --no-cache \
     curl \
     jq
 
-# Copy test scripts
-COPY scripts/tests/run-system-tests.sh /tests/run-system-tests.sh
-RUN chmod +x /tests/run-system-tests.sh
+# Copy test scripts directory
+COPY scripts/tests/ /tests/
+RUN chmod +x /tests/*.sh
 
 WORKDIR /tests
 
