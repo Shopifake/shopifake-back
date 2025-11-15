@@ -41,8 +41,10 @@ jobs:
 
   commit_lock:
     name: Commit Lock to Staging
-    needs: generate_lock
-    if: github.event_name == 'pull_request'
+    needs:
+      - generate_lock
+      - system_tests
+    if: github.event_name == 'pull_request' && needs.system_tests.result == 'success'
     uses: ./.github/workflows/pr-dev-commit-lock.yml
     with:
       lock-artifact-name: lock-${{ github.event.number }}
