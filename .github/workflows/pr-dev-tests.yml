@@ -1,4 +1,4 @@
-name: System and Integration Tests
+name: System Tests
 
 on:
   workflow_call:
@@ -7,11 +7,14 @@ on:
         description: 'Optional docker-compose file to spin up the stack'
         required: false
         type: string
-      integration-command:
-        description: 'Command to execute integration tests'
-        required: false
+      lock-artifact-name:
+        description: 'Name of the artifact containing the lock file'
+        required: true
         type: string
-        default: 'bash scripts/tests/run-integration-tests.sh'
+      lock-filename:
+        description: 'Filename of the lock within the artifact'
+        required: true
+        type: string
       system-command:
         description: 'Command to execute end-to-end/system tests'
         required: false
@@ -28,37 +31,100 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          submodules: recursive
+          sparse-checkout: |
+            compose/
+            scripts/tests/
 
-      - name: Sync submodules
+      - name: Download lock artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.lock-artifact-name }}
+          path: locks
+
+      - name: Extract images from lock
+        id: images
         run: |
           set -euo pipefail
-          git config --global url."https://github.com/".insteadOf git@github.com:
-          git submodule sync --recursive
-          git submodule update --init --recursive --depth 1
+          LOCK_FILE="locks/${{ inputs.lock-filename }}"
+          
+          # Extract image tags from lock and create image mapping
+          # Format: SERVICE_NAME=ghcr.io/owner/image:tag
+          IMAGE_MAP=$(jq -r '.services | to_entries[] | "\(.key | ascii_upcase)=\(.value.image.repository):\(.value.image.tag)"' "$LOCK_FILE")
+          
+          # Export as GitHub output (multi-line)
+          echo "$IMAGE_MAP" | while IFS='=' read -r service image; do
+            echo "${service}=${image}" >> "$GITHUB_OUTPUT"
+          done
+          
+          # Also save to file for docker-compose substitution
+          echo "$IMAGE_MAP" > /tmp/image-mapping.env
+          cat /tmp/image-mapping.env
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build service images
+      - name: Pull images from lock
         run: |
           set -euo pipefail
-          docker compose -f "${{ inputs.compose-file }}" build --pull
+          MISSING_IMAGES=()
+          
+          while IFS='=' read -r service image; do
+            echo "Pulling image for $service: $image"
+            if docker pull "$image"; then
+              echo "✓ Successfully pulled $image"
+            else
+              echo "✗ Failed to pull $image"
+              MISSING_IMAGES+=("$image")
+            fi
+          done < /tmp/image-mapping.env
+          
+          if [ ${#MISSING_IMAGES[@]} -gt 0 ]; then
+            echo "::error::The following images are missing from GHCR:"
+            printf '  - %s\n' "${MISSING_IMAGES[@]}"
+            exit 1
+          fi
+
+      - name: Generate docker-compose with lock images
+        id: compose-gen
+        run: |
+          set -euo pipefail
+          # Read lock and generate docker-compose override
+          LOCK_FILE="locks/${{ inputs.lock-filename }}"
+          COMPOSE_OVERRIDE="/tmp/compose-override.yml"
+          
+          # Create override with image references from lock
+          # Map lock service names (shopifake-*) to docker-compose service names (without prefix)
+          cat > "$COMPOSE_OVERRIDE" <<EOF
+          version: "3.9"
+          services:
+          EOF
+          
+          # Extract images and map to docker-compose service names
+          jq -r '.services | to_entries[] | "\(.key)\t\(.value.image.repository):\(.value.image.tag)"' \
+            "$LOCK_FILE" | while IFS=$'\t' read -r service_name image_ref; do
+              # Remove 'shopifake-' prefix for docker-compose service name
+              compose_service="${service_name#shopifake-}"
+              echo "  $compose_service:" >> "$COMPOSE_OVERRIDE"
+              echo "    image: $image_ref" >> "$COMPOSE_OVERRIDE"
+            done
+          
+          echo "compose-override=$COMPOSE_OVERRIDE" >> "$GITHUB_OUTPUT"
+          echo "Generated compose override:"
+          cat "$COMPOSE_OVERRIDE"
 
       - name: Start system stack
         id: start-stack
         run: |
           set -euo pipefail
-          docker compose -f "${{ inputs.compose-file }}" up -d --wait
-
-      - name: Run integration tests
-        env:
-          ENV: local
-        run: |
-          set -euo pipefail
-          echo "Running integration tests: ${{ inputs.integration-command }}"
-          ${{ inputs.integration-command }}
+          # Merge base compose with override from lock
+          docker compose \
+            -f "${{ inputs.compose-file }}" \
+            -f "${{ steps.compose-gen.outputs.compose-override }}" \
+            up -d --wait
 
       - name: Run system tests
         env:
@@ -71,10 +137,16 @@ jobs:
       - name: Collect logs on failure
         if: failure()
         run: |
-          docker compose -f "${{ inputs.compose-file }}" logs || true
+          docker compose \
+            -f "${{ inputs.compose-file }}" \
+            -f "${{ steps.compose-gen.outputs.compose-override }}" \
+            logs || true
 
       - name: Tear down stack
         if: always()
         run: |
-          docker compose -f "${{ inputs.compose-file }}" down -v
+          docker compose \
+            -f "${{ inputs.compose-file }}" \
+            -f "${{ steps.compose-gen.outputs.compose-override }}" \
+            down -v
 

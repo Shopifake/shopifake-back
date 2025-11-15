@@ -14,21 +14,22 @@ permissions:
   actions: read
 
 jobs:
-  integration_tests:
-    name: System & Integration Tests
-    uses: ./.github/workflows/pr-dev-tests.yml
-    with:
-      compose-file: compose/system-tests.compose.yml
-      integration-command: bash scripts/tests/run-integration-tests.sh
-      system-command: bash scripts/tests/run-system-tests.sh
-
   generate_lock:
     name: Generate Lock
-    needs: integration_tests
     uses: ./.github/workflows/pr-dev-generate-lock.yml
     with:
       lock-artifact-name: lock-${{ github.event.number }}
       lock-filename: lock-pr-${{ github.event.number }}.yml
+
+  system_tests:
+    name: System Tests
+    needs: generate_lock
+    uses: ./.github/workflows/pr-dev-tests.yml
+    with:
+      compose-file: compose/system-tests.compose.yml
+      lock-artifact-name: lock-${{ github.event.number }}
+      lock-filename: lock-pr-${{ github.event.number }}.yml
+      system-command: bash scripts/tests/run-system-tests.sh
 
   publish_lock:
     name: Publish Lock Summary

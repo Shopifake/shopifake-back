@@ -2,105 +2,184 @@ version: "3.9"
 
 x-default-env: &spring-dev
   SPRING_PROFILES_ACTIVE: dev
+  DB_URL: jdbc:postgresql://postgres:5432/shopifake_test
+  DB_DRIVER: org.postgresql.Driver
+  DB_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+  DB_USERNAME: testuser
+  DB_PASSWORD: testpass
+  PORT: 8080
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: shopifake_test
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Application services
+  # Note: Images will be overridden by CI workflow with GHCR images from the lock
   gateway:
-    build:
-      context: ../infra/shopifake-gateway
-      target: dev
     image: shopifake-gateway:test-local
     environment:
       <<: *spring-dev
     ports:
       - "8080:8080"
     depends_on:
-      - access
-      - audit
-      - catalog
-      - customers
-      - inventory
-      - orders
-      - pricing
-      - sales-dashboard
-      - sites
-      - chatbot
-      - recommender
-      - auth-b2c
-      - auth-b2e
-      - bus
-
+      postgres:
+        condition: service_healthy
+      access:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+      catalog:
+        condition: service_healthy
+      customers:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+      orders:
+        condition: service_healthy
+      pricing:
+        condition: service_healthy
+      sales-dashboard:
+        condition: service_healthy
+      sites:
+        condition: service_healthy
+      chatbot:
+        condition: service_started
+      recommender:
+        condition: service_started
+      auth-b2c:
+        condition: service_started
+      auth-b2e:
+        condition: service_started
+      bus:
+        condition: service_healthy
 
   access:
-    build:
-      context: ../services/shopifake-access
-      target: dev
     image: shopifake-access:test-local
     environment:
       <<: *spring-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   audit:
-    build:
-      context: ../services/shopifake-audit
-      target: dev
     image: shopifake-audit:test-local
     environment:
       <<: *spring-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   catalog:
-    build:
-      context: ../services/shopifake-catalog
-      target: dev
     image: shopifake-catalog:test-local
     environment:
       <<: *spring-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   customers:
-    build:
-      context: ../services/shopifake-customers
-      target: dev
     image: shopifake-customers:test-local
     environment:
       <<: *spring-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   inventory:
-    build:
-      context: ../services/shopifake-inventory
-      target: dev
     image: shopifake-inventory:test-local
     environment:
       <<: *spring-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   orders:
-    build:
-      context: ../services/shopifake-orders
-      target: dev
     image: shopifake-orders:test-local
     environment:
       <<: *spring-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   pricing:
-    build:
-      context: ../services/shopifake-pricing
-      target: dev
     image: shopifake-pricing:test-local
     environment:
       <<: *spring-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   sales-dashboard:
-    build:
-      context: ../services/shopifake-sales-dashboard
-      target: dev
     image: shopifake-sales-dashboard:test-local
     environment:
       <<: *spring-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   sites:
-    build:
-      context: ../services/shopifake-sites
-      target: dev
     image: shopifake-sites:test-local
     environment:
       <<: *spring-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   chatbot:
     image: alpine:3.19
@@ -122,9 +201,20 @@ services:
     command: ["sh", "-c", "echo 'TODO: auth-b2e service mock'; sleep 3600"]
     # TODO: build from ../infra/shopifake-auth-b2e once template ready
 
+  # Message bus - RabbitMQ
   bus:
-    image: alpine:3.19
-    command: ["sh", "-c", "echo 'TODO: message bus mock'; sleep 3600"]
-    # TODO: replace with RabbitMQ instance or mock when infrastructure ready
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: testuser
+      RABBITMQ_DEFAULT_PASS: testpass
+    ports:
+      - "15672:15672"  # Management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+volumes:
+  postgres_data:
 
