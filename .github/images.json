@@ -36,11 +36,11 @@
     "tag_prefix": "main-"
   },
   "shopifake-chatbot": {
-    "repository": "ghcr.io/hugobrun343/shopifake-chatbot",
+    "repository": "ghcr.io/shopifake/shopifake-chatbot",
     "tag_prefix": "sha-"
   },
   "shopifake-recommender": {
-    "repository": "ghcr.io/hugobrun343/shopifake-recommender",
+    "repository": "ghcr.io/shopifake/shopifake-recommender",
     "tag_prefix": "sha-"
   },
   "shopifake-gateway": {
