@@ -1,54 +1,72 @@
 [submodule "services/shopifake-access"]
 	path = services/shopifake-access
 	url = git@github.com:Shopifake/shopifake-access.git
+	branch = main
 [submodule "services/shopifake-customers"]
 	path = services/shopifake-customers
 	url = git@github.com:Shopifake/shopifake-customers.git
+	branch = main
 [submodule "services/shopifake-sites"]
 	path = services/shopifake-sites
 	url = git@github.com:Shopifake/shopifake-sites.git
+	branch = main
 [submodule "services/shopifake-catalog"]
 	path = services/shopifake-catalog
 	url = git@github.com:Shopifake/shopifake-catalog.git
+	branch = main
 [submodule "services/shopifake-inventory"]
 	path = services/shopifake-inventory
 	url = git@github.com:Shopifake/shopifake-inventory.git
+	branch = main
 [submodule "services/shopifake-pricing"]
 	path = services/shopifake-pricing
 	url = git@github.com:Shopifake/shopifake-pricing.git
+	branch = main
 [submodule "services/shopifake-orders"]
 	path = services/shopifake-orders
 	url = git@github.com:Shopifake/shopifake-orders.git
+	branch = main
 [submodule "services/shopifake-audit"]
 	path = services/shopifake-audit
 	url = git@github.com:Shopifake/shopifake-audit.git
+	branch = main
 [submodule "services/shopifake-sales-dashboard"]
 	path = services/shopifake-sales-dashboard
 	url = git@github.com:Shopifake/shopifake-sales-dashboard.git
+	branch = main
 [submodule "services/shopifake-recommender"]
 	path = services/shopifake-recommender
 	url = git@github.com:Shopifake/shopifake-recommender.git
+	branch = main
 [submodule "services/shopifake-chatbot"]
 	path = services/shopifake-chatbot
 	url = git@github.com:Shopifake/shopifake-chatbot.git
+	branch = main
 [submodule "infra/shopifake-gateway"]
 	path = infra/shopifake-gateway
 	url = git@github.com:Shopifake/shopifake-gateway.git
+	branch = main
 [submodule "infra/shopifake-bus"]
 	path = infra/shopifake-bus
 	url = git@github.com:Shopifake/shopifake-bus.git
+	branch = main
 [submodule "infra/shopifake-auth-b2e"]
 	path = infra/shopifake-auth-b2e
 	url = git@github.com:Shopifake/shopifake-auth-b2e.git
+	branch = main
 [submodule "infra/shopifake-auth-b2c"]
 	path = infra/shopifake-auth-b2c
 	url = git@github.com:Shopifake/shopifake-auth-b2c.git
+	branch = main
 [submodule "infra/shopifake-grafana"]
 	path = infra/shopifake-grafana
 	url = git@github.com:Shopifake/shopifake-grafana.git
+	branch = main
 [submodule "infra/shopifake-prometheus"]
 	path = infra/shopifake-prometheus
 	url = git@github.com:Shopifake/shopifake-prometheus.git
+	branch = main
 [submodule "infra/shopifake-otel-collector"]
 	path = infra/shopifake-otel-collector
 	url = git@github.com:Shopifake/shopifake-otel-collector.git
+	branch = main
