@@ -6,9 +6,6 @@
 
 set -euo pipefail
 
-ENV="${ENV}"
-API_BASE_URL="${API_BASE_URL}"
-
 echo "[smoke-tests] Starting smoke test suite in $ENV mode..."
 
 if [[ "$ENV" == "prod" ]]; then

@@ -6,9 +6,6 @@
 
 set -euo pipefail
 
-ENV="${ENV}"
-API_BASE_URL="${API_BASE_URL}"
-
 echo "[system-tests] Starting system/E2E test suite in $ENV mode..."
 
 if [[ "$ENV" == "staging" ]]; then
