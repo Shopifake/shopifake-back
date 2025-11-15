@@ -50,9 +50,18 @@ jobs:
           set -euo pipefail
           LOCK_FILE="locks/${{ inputs.lock-filename }}"
           
+          # Services to exclude from pulling (infra monitoring/observability)
+          EXCLUDE_SERVICES=("shopifake-prometheus" "shopifake-grafana" "shopifake-otel-collector")
+          EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDE_SERVICES[*]}")
+          
           # Extract image tags from lock and create image mapping
           # Format: SERVICE_NAME=ghcr.io/owner/image:tag
-          IMAGE_MAP=$(jq -r '.services | to_entries[] | "\(.key | ascii_upcase)=\(.value.image.repository):\(.value.image.tag)"' "$LOCK_FILE")
+          # Exclude monitoring/observability services that don't have GHCR images
+          IMAGE_MAP=$(jq -r --arg exclude "$EXCLUDE_PATTERN" '
+            .services | to_entries[] | 
+            select(.key | test($exclude) | not) |
+            "\(.key | ascii_upcase)=\(.value.image.repository):\(.value.image.tag)"
+          ' "$LOCK_FILE")
           
           # Export as GitHub output (multi-line)
           echo "$IMAGE_MAP" | while IFS='=' read -r service image; do
@@ -107,8 +116,15 @@ jobs:
           EOF
           
           # Extract images and map to docker-compose service names
-          jq -r '.services | to_entries[] | "\(.key)\t\(.value.image.repository):\(.value.image.tag)"' \
-            "$LOCK_FILE" | while IFS=$'\t' read -r service_name image_ref; do
+          # Exclude monitoring/observability services (same as pull step)
+          EXCLUDE_SERVICES=("shopifake-prometheus" "shopifake-grafana" "shopifake-otel-collector")
+          EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDE_SERVICES[*]}")
+          
+          jq -r --arg exclude "$EXCLUDE_PATTERN" '
+            .services | to_entries[] | 
+            select(.key | test($exclude) | not) |
+            "\(.key)\t\(.value.image.repository):\(.value.image.tag)"
+          ' "$LOCK_FILE" | while IFS=$'\t' read -r service_name image_ref; do
               # Remove 'shopifake-' prefix for docker-compose service name
               compose_service="${service_name#shopifake-}"
               echo "  $compose_service:" >> "$COMPOSE_OVERRIDE"

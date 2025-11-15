@@ -36,32 +36,16 @@
     "tag_prefix": "main-"
   },
   "shopifake-chatbot": {
-    "repository": "ghcr.io/shopifake/shopifake-chatbot"
+    "repository": "ghcr.io/hugobrun343/shopifake-chatbot",
+    "tag_prefix": "sha-"
   },
   "shopifake-recommender": {
-    "repository": "ghcr.io/shopifake/shopifake-recommender"
+    "repository": "ghcr.io/hugobrun343/shopifake-recommender",
+    "tag_prefix": "sha-"
   },
   "shopifake-gateway": {
     "repository": "ghcr.io/shopifake/shopifake-gateway",
     "tag_prefix": "main-"
-  },
-  "shopifake-bus": {
-    "repository": "ghcr.io/shopifake/shopifake-bus"
-  },
-  "shopifake-auth-b2c": {
-    "repository": "ghcr.io/shopifake/shopifake-auth-b2c"
-  },
-  "shopifake-auth-b2e": {
-    "repository": "ghcr.io/shopifake/shopifake-auth-b2e"
-  },
-  "shopifake-grafana": {
-    "repository": "ghcr.io/shopifake/shopifake-grafana"
-  },
-  "shopifake-prometheus": {
-    "repository": "ghcr.io/shopifake/shopifake-prometheus"
-  },
-  "shopifake-otel-collector": {
-    "repository": "ghcr.io/shopifake/shopifake-otel-collector"
   }
 }
 
