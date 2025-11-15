@@ -22,6 +22,10 @@ jobs:
     secrets:
         KUBECONFIG: ${{ secrets.KUBECONFIG }}
 
+  build_test_image:
+    name: Build Test Runner Image
+    uses: ./.github/workflows/merge-staging-build-test-image.yml
+
   deploy_staging:
     needs:
       - prepare
@@ -31,12 +35,12 @@ jobs:
       lock-path: ${{ needs.prepare.outputs.lock-path }}
 
   tests_staging:
-    needs: deploy_staging
+    needs:
+      - deploy_staging
+      - build_test_image
     uses: ./.github/workflows/merge-staging-tests.yml
-    with:
-      integration-command: bash scripts/tests/run-integration-tests.sh
-      system-command: bash scripts/tests/run-system-tests.sh
-      load-command: bash scripts/tests/run-load-tests.sh
+    # TODO: Use test image from build_test_image to run tests as K8s Job in staging cluster
+
 
   promotion_pr:
     needs: tests_staging
