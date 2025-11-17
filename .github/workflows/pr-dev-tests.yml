@@ -111,7 +111,6 @@ jobs:
           # Create override with image references from lock
           # Map lock service names (shopifake-*) to docker-compose service names (without prefix)
           cat > "$COMPOSE_OVERRIDE" <<EOF
-          version: "3.9"
           services:
           EOF
           
@@ -131,6 +130,16 @@ jobs:
           echo "compose-override=$COMPOSE_OVERRIDE" >> "$GITHUB_OUTPUT"
           echo "Generated compose override:"
           cat "$COMPOSE_OVERRIDE"
+
+      - name: Verify init-databases.sql exists
+        run: |
+          set -euo pipefail
+          if [ ! -f "scripts/init-databases.sql" ]; then
+            echo "::error::init-databases.sql not found"
+            exit 1
+          fi
+          echo "✓ init-databases.sql found"
+          ls -la scripts/init-databases.sql
 
       - name: Start system stack
         id: start-stack
