@@ -1,0 +1,34 @@
+meta {
+  name: Update Product Status
+  type: http
+  seq: 15
+}
+
+patch {
+  url: {{baseUrl}}/api/products/{{productId}}/status
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "status": "SCHEDULED",
+    "scheduledPublishAt": "2030-01-01T12:00:00"
+  }
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8081
+  productId: {{env.productId}}
+}
+
+docs {
+  # Update Product Status
+
+  Use this to move a product between `DRAFT`, `PUBLISHED`, or `SCHEDULED`. The `scheduledPublishAt` value is only required for scheduled products.
+}
+

@@ -1,0 +1,25 @@
+meta {
+  name: Get Product by ID
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/products/{{productId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8081
+}
+
+docs {
+  # Get Product by ID
+  
+  Retrieves the full product payload (filters, status, timestamps) for the current `productId`.
+}

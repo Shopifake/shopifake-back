@@ -1,0 +1,26 @@
+meta {
+  name: List Inventory
+  type: http
+  seq: 22
+}
+
+get {
+  url: {{baseUrl}}/api/inventory?status={{status}}
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8082
+  status: IN_STOCK
+}
+
+docs {
+  # List Inventory
+
+  Lists inventory rows, optionally filtered by `status` (`IN_STOCK`, `LOW_STOCK`, `OUT_OF_STOCK`, `BACKORDERED`).
+}
+

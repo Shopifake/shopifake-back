@@ -1,0 +1,25 @@
+meta {
+  name: List Published Products
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/products/public?siteId={{siteId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8081
+}
+
+docs {
+  # List Published Products
+  
+  Storefront-friendly endpoint that only returns `PUBLISHED` items (optionally filtered by site).
+}

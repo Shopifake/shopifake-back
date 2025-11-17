@@ -1,0 +1,33 @@
+meta {
+  name: Update Price
+  type: http
+  seq: 31
+}
+
+patch {
+  url: {{baseUrl}}/api/prices/{{priceId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "amount": 44.99
+  }
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8083
+  priceId: {{env.priceId}}
+}
+
+docs {
+  # Update Price
+
+  Adjusts the amount/currency/effective window for an existing price entry. Requires a `priceId` captured from the create request.
+}
+
