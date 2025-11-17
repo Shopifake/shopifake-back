@@ -1,8 +1,7 @@
 x-default-env: &spring-prod
-  # Spring Boot datasource configuration
-  SPRING_DATASOURCE_USERNAME: shopifake
-  SPRING_DATASOURCE_PASSWORD: shopifake_pass
-  SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+  # Spring Boot configuration
+  DB_USERNAME: shopifake
+  DB_PASSWORD: shopifake_pass
   SERVER_PORT: 8080
   # CORS settings for production
   CORS_ALLOWED_ORIGINS: "*"
@@ -98,7 +97,7 @@ services:
     image: shopifake-access:test-local
     environment:
       <<: *spring-prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_access
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_access
     depends_on:
       postgres:
         condition: service_healthy
@@ -112,7 +111,7 @@ services:
     image: shopifake-audit:test-local
     environment:
       <<: *spring-prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_audit
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_audit
     depends_on:
       postgres:
         condition: service_healthy
@@ -126,7 +125,7 @@ services:
     image: shopifake-catalog:test-local
     environment:
       <<: *spring-prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_catalog
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_catalog
     depends_on:
       postgres:
         condition: service_healthy
@@ -140,7 +139,7 @@ services:
     image: shopifake-customers:test-local
     environment:
       <<: *spring-prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_customers
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_customers
     depends_on:
       postgres:
         condition: service_healthy
@@ -154,7 +153,7 @@ services:
     image: shopifake-inventory:test-local
     environment:
       <<: *spring-prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_inventory
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_inventory
     depends_on:
       postgres:
         condition: service_healthy
@@ -168,7 +167,7 @@ services:
     image: shopifake-orders:test-local
     environment:
       <<: *spring-prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_orders
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_orders
     depends_on:
       postgres:
         condition: service_healthy
@@ -182,7 +181,7 @@ services:
     image: shopifake-pricing:test-local
     environment:
       <<: *spring-prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_pricing
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_pricing
     depends_on:
       postgres:
         condition: service_healthy
@@ -196,7 +195,7 @@ services:
     image: shopifake-sales-dashboard:test-local
     environment:
       <<: *spring-prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_sales_dashboard
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_sales_dashboard
     depends_on:
       postgres:
         condition: service_healthy
@@ -210,7 +209,7 @@ services:
     image: shopifake-sites:test-local
     environment:
       <<: *spring-prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_sites
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_sites
     depends_on:
       postgres:
         condition: service_healthy
