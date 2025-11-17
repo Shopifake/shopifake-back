@@ -26,24 +26,32 @@ jobs:
 
       - name: Setup kubeconfig
         run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG_STAGING }}" | $HOME/.kube/config
-          $HOME/.kube/config
-          export KUBECONFIG=$HOME/.kube/config
-          
-          if ! kubectl config view >/dev/null 2>&1; then
-            echo "❌ ERROR: Invalid kubeconfig"
+          if ! kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) config view >/dev/null 2>&1; then
+            echo "ERROR: Invalid kubeconfig"
             exit 1
           fi
-          echo "✅ Kubeconfig loaded successfully"
+          echo "Kubeconfig loaded successfully"
 
       - name: Check cluster connectivity
         run: |
-          echo "🔍 Testing cluster connectivity..."
-          if kubectl cluster-info >/dev/null 2>&1; then
-            echo "✅ Connected to cluster"
-            kubectl cluster-info
+          echo "Testing cluster connectivity..."
+          if kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) cluster-info >/dev/null 2>&1; then
+          echo "Connected to cluster"
+          kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) cluster-info
           else
-            echo "❌ Cannot connect to cluster"
+          echo "Cannot connect to cluster"
+          exit 1
+          fi
+
+      - name: Verify namespace exists
+        run: |
+          echo "Checking if namespace 'shopifake-staging' exists..."
+          if kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) get namespace shopifake-staging >/dev/null 2>&1; then
+            echo "Namespace 'shopifake-staging' exists"
+            kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) get namespace shopifake-staging
+          else
+            echo "ERROR: Namespace 'shopifake-staging' does not exist"
+            echo "Available namespaces:"
+            kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) get namespaces
             exit 1
           fi

@@ -6,13 +6,6 @@ on:
       image-tag:
         description: "Tag of the built test runner image"
         value: ${{ jobs.build.outputs.image-tag }}
-  
-  push:
-    branches:
-      - staging
-      - main
-    paths:
-      - 'scripts/tests/**'
 
 jobs:
   build:

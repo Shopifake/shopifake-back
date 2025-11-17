@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  packages: write
 
 jobs:
   prepare:
@@ -33,6 +34,7 @@ jobs:
     uses: ./.github/workflows/merge-staging-deploy.yml
     with:
       lock-path: ${{ needs.prepare.outputs.lock-path }}
+    secrets: inherit
 
   tests_staging:
     needs:
