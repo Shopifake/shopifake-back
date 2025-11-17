@@ -38,6 +38,7 @@ jobs:
             .github/images.json
             compose/
             scripts/tests/
+            scripts/init-databases.sql
 
       - name: Download lock artifact
         uses: actions/download-artifact@v4
