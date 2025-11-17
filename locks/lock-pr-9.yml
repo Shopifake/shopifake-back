@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "commit": "dd767a585a125b84d65cd54c4e7d1ca3a9a0af38",
-    "generated_at": "2025-11-17T10:19:40.567227+00:00",
+    "commit": "5d5d53e2d490bcdf6fbbd409aeec2cc4c61d51b0",
+    "generated_at": "2025-11-17T12:49:58.629826+00:00",
     "generator": "generate_lock.py@v1",
     "source_branch": "HEAD"
   },
@@ -149,6 +149,14 @@
         "tag": "main-265b276"
       },
       "submodule_path": "services/shopifake-sites"
+    },
+    "shopifake-test-runner": {
+      "git_sha": "a080c5936d6ff6138d8acd3c0d14c8dee0da7d47",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-test-runner",
+        "tag": "sha-a080c59"
+      },
+      "submodule_path": "infra/shopifake-test-runner"
     }
   }
 }

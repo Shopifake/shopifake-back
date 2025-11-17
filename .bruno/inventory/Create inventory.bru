@@ -17,9 +17,7 @@ headers {
 body:json {
   {
     "productId": "{{productId}}",
-    "initialQuantity": 25,
-    "reservedQuantity": 2,
-    "lowStockThreshold": 5
+    "initialQuantity": 25
   }
 }
 
@@ -32,7 +30,5 @@ docs {
   
   Initializes stock tracking for a product. The `productId` is reused from the catalog request output.
   
-  - `initialQuantity` sets available on-hand units.
-  - `reservedQuantity` prebooks stock for open orders.
-  - `lowStockThreshold` controls when the API reports LOW_STOCK status.
+  - `initialQuantity` sets available on-hand units and seeds the initial status.
 }

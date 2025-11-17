@@ -58,6 +58,10 @@
   "shopifake-auth-b2e": {
     "repository": "ghcr.io/shopifake/shopifake-auth-b2e",
     "tag_prefix": "sha-"
+  },
+  "shopifake-test-runner": {
+    "repository": "ghcr.io/shopifake/shopifake-test-runner",
+    "tag_prefix": "sha-"
   }
 }
 

@@ -70,3 +70,7 @@
 	path = infra/shopifake-otel-collector
 	url = git@github.com:Shopifake/shopifake-otel-collector.git
 	branch = main
+[submodule "infra/shopifake-test-runner"]
+	path = infra/shopifake-test-runner
+	url = git@github.com:Shopifake/shopifake-test-runner.git
+	branch = main
