@@ -59,6 +59,8 @@ services:
       SERVICES_SALES_DASHBOARD_URL: http://sales-dashboard:8080
       SERVICES_SITES_URL: http://sites:8080
       SERVICES_CHATBOT_URL: http://chatbot:8000
+      SERVICES_AUTH_B2C_URL: http://auth-b2c:3000
+      SERVICES_AUTH_B2E_URL: http://auth-b2e:3000
     ports:
       - "8080:8080"
     depends_on:
