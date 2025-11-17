@@ -22,9 +22,8 @@ body:json {
     "images": [
       "https://cdn.example.com/sample.png"
     ],
-    "categories": [
-      "featured",
-      "new-arrivals"
+    "categoryIds": [
+      "{{categoryId}}"
     ],
     "sku": "sample-002",
     "status": "DRAFT",
@@ -52,6 +51,7 @@ docs {
   Creates a storefront-ready product. The resulting `productId` is stored in the shared environment.
   
   - `siteId` must reference an existing site.
+  - `categoryIds` must correspond to existing categories belonging to the same site.
   - `status` accepts `DRAFT`, `PUBLISHED`, or `SCHEDULED`.
   - `filters` let you predefine categorical/quantitative facets for the storefront.
 }
