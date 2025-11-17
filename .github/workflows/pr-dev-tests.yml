@@ -175,10 +175,17 @@ jobs:
         if: failure()
         run: |
           TEMP_COMPOSE="/tmp/system-tests-with-abs-path.yml"
+          echo "=== Full logs from failing services ==="
           docker compose \
             -f "$TEMP_COMPOSE" \
             -f "${{ steps.compose-gen.outputs.compose-override }}" \
-            logs || true
+            logs --tail=200 access audit catalog customers inventory orders pricing sales-dashboard sites || true
+          echo ""
+          echo "=== Checking environment variables ==="
+          docker compose \
+            -f "$TEMP_COMPOSE" \
+            -f "${{ steps.compose-gen.outputs.compose-override }}" \
+            exec -T access env | grep -E "(DB_|SPRING_|PORT)" || true
 
       - name: Tear down stack
         if: always()
