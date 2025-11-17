@@ -1,9 +1,7 @@
 x-default-env: &spring-prod
-  # Spring Boot reads these environment variables automatically
-  # No need to set SPRING_PROFILES_ACTIVE as it's hardcoded in Dockerfile ENTRYPOINT
-  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_test
-  SPRING_DATASOURCE_USERNAME: testuser
-  SPRING_DATASOURCE_PASSWORD: testpass
+  # Spring Boot datasource configuration
+  SPRING_DATASOURCE_USERNAME: shopifake
+  SPRING_DATASOURCE_PASSWORD: shopifake_pass
   SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
   SERVER_PORT: 8080
   # CORS settings for production
@@ -14,13 +12,14 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: testuser
-      POSTGRES_PASSWORD: testpass
-      POSTGRES_DB: shopifake_test
+      POSTGRES_USER: shopifake
+      POSTGRES_PASSWORD: shopifake_pass
+      POSTGRES_MULTIPLE_DATABASES: shopifake_access,shopifake_audit,shopifake_catalog,shopifake_customers,shopifake_inventory,shopifake_orders,shopifake_pricing,shopifake_sales_dashboard,shopifake_sites,shopifake_chatbot,shopifake_recommender,shopifake_auth_b2c,shopifake_auth_b2e
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sh:/docker-entrypoint-initdb.d/init-postgres.sh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U testuser"]
+      test: ["CMD-SHELL", "pg_isready -U shopifake"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -99,6 +98,7 @@ services:
     image: shopifake-access:test-local
     environment:
       <<: *spring-prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_access
     depends_on:
       postgres:
         condition: service_healthy
@@ -112,6 +112,7 @@ services:
     image: shopifake-audit:test-local
     environment:
       <<: *spring-prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_audit
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,6 +126,7 @@ services:
     image: shopifake-catalog:test-local
     environment:
       <<: *spring-prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_catalog
     depends_on:
       postgres:
         condition: service_healthy
@@ -138,6 +140,7 @@ services:
     image: shopifake-customers:test-local
     environment:
       <<: *spring-prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_customers
     depends_on:
       postgres:
         condition: service_healthy
@@ -151,6 +154,7 @@ services:
     image: shopifake-inventory:test-local
     environment:
       <<: *spring-prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_inventory
     depends_on:
       postgres:
         condition: service_healthy
@@ -164,6 +168,7 @@ services:
     image: shopifake-orders:test-local
     environment:
       <<: *spring-prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_orders
     depends_on:
       postgres:
         condition: service_healthy
@@ -177,6 +182,7 @@ services:
     image: shopifake-pricing:test-local
     environment:
       <<: *spring-prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_pricing
     depends_on:
       postgres:
         condition: service_healthy
@@ -190,6 +196,7 @@ services:
     image: shopifake-sales-dashboard:test-local
     environment:
       <<: *spring-prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_sales_dashboard
     depends_on:
       postgres:
         condition: service_healthy
@@ -203,6 +210,7 @@ services:
     image: shopifake-sites:test-local
     environment:
       <<: *spring-prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_sites
     depends_on:
       postgres:
         condition: service_healthy
@@ -214,6 +222,16 @@ services:
 
   chatbot:
     image: shopifake-chatbot:test-local
+    environment:
+      ENVIRONMENT: production
+      POSTGRES_USER: shopifake
+      POSTGRES_PASSWORD: shopifake_pass
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: shopifake_chatbot
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -222,6 +240,16 @@ services:
 
   recommender:
     image: shopifake-recommender:test-local
+    environment:
+      ENVIRONMENT: production
+      POSTGRES_USER: shopifake
+      POSTGRES_PASSWORD: shopifake_pass
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: shopifake_recommender
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -232,7 +260,7 @@ services:
     image: shopifake-auth-b2c:test-local
     environment:
       PORT: 3000
-      DATABASE_URL: postgresql://testuser:testpass@postgres:5432/shopifake_test
+      DATABASE_URL: postgresql://shopifake:shopifake_pass@postgres:5432/shopifake_auth_b2c
       BETTER_AUTH_SECRET: test-secret-key-for-development-only-min-32-chars
     depends_on:
       postgres:
@@ -247,7 +275,7 @@ services:
     image: shopifake-auth-b2e:test-local
     environment:
       PORT: 3000
-      DATABASE_URL: postgresql://testuser:testpass@postgres:5432/shopifake_test
+      DATABASE_URL: postgresql://shopifake:shopifake_pass@postgres:5432/shopifake_auth_b2e
       BETTER_AUTH_SECRET: test-secret-key-for-development-only-min-32-chars
     depends_on:
       postgres:
