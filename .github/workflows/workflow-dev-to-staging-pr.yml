@@ -30,7 +30,6 @@ jobs:
       compose-file: compose/system-tests.compose.yml
       lock-artifact-name: lock-${{ github.event.number }}
       lock-filename: lock-pr-${{ github.event.number }}.yml
-      system-command: bash scripts/tests/run-system-tests.sh
 
   publish_lock:
     name: Publish Lock Summary

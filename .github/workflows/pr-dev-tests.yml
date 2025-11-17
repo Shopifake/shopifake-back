@@ -15,11 +15,6 @@ on:
         description: 'Filename of the lock within the artifact'
         required: true
         type: string
-      system-command:
-        description: 'Command to execute end-to-end/system tests'
-        required: false
-        type: string
-        default: 'bash scripts/tests/run-system-tests.sh'
 
 jobs:
   system-tests:
@@ -37,7 +32,6 @@ jobs:
           sparse-checkout: |
             .github/images.json
             compose/
-            scripts/tests/
             scripts/init-databases.sql
 
       - name: Download lock artifact
@@ -163,13 +157,22 @@ jobs:
             -f "${{ steps.compose-gen.outputs.compose-override }}" \
             up -d --wait
 
-      - name: Run system tests
-        env:
-          ENV: local
+      - name: Pull test-runner image
         run: |
-          set -euo pipefail
-          echo "Running system tests: ${{ inputs.system-command }}"
-          ${{ inputs.system-command }}
+          # Extract test-runner image from lock
+          LOCK_FILE="locks/${{ inputs.lock-filename }}"
+          TEST_RUNNER_IMAGE=$(jq -r '.services["shopifake-test-runner"].image.repository + ":" + .services["shopifake-test-runner"].image.tag' "$LOCK_FILE")
+          echo "Pulling test-runner image: $TEST_RUNNER_IMAGE"
+          docker pull "$TEST_RUNNER_IMAGE"
+          echo "TEST_RUNNER_IMAGE=$TEST_RUNNER_IMAGE" >> $GITHUB_ENV
+
+      - name: Run system tests
+        run: |
+          docker run --rm \
+            --network host \
+            -e BASE_URL=http://localhost:8080 \
+            ${{ env.TEST_RUNNER_IMAGE }} \
+            --mode pr --suite system --verbose
 
       - name: Collect logs on failure
         if: failure()

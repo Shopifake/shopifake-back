@@ -4,18 +4,17 @@ on:
   workflow_call:
 
 jobs:
-  run-staging-tests:
-    name: Run System Tests on Staging
+  deploy-test-job:
+    name: Deploy Test Job to Staging Cluster
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            scripts/tests/
-      
-      # TODO: Replace with Kubernetes Job approach
-      # The test runner image is already built (see merge-staging-build-test-image.yml)
-      # Next step: deploy a Job in the staging cluster instead of running from GitHub Actions runner
-      # Benefits: tests run inside the cluster network, closer to real conditions
+      - name: Deploy Kubernetes Job for tests
+        run: |
+          # TODO: Deploy K8s Job with test-runner in staging cluster
+          # - Image: ghcr.io/shopifake/shopifake-test-runner:latest
+          # - Args: --mode staging --suite all --verbose
+          # - Env: BASE_URL=https://staging-api.shopifake.com, GITHUB_TOKEN
+          # - On success: pod creates promotion PR staging→main
+          # - On failure: pod sends email notification
+          echo "TODO: Implement K8s Job deployment"
