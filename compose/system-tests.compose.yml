@@ -1,7 +1,7 @@
 version: "3.9"
 
-x-default-env: &spring-dev
-  SPRING_PROFILES_ACTIVE: dev
+x-default-env: &spring-prod
+  SPRING_PROFILES_ACTIVE: prod
   DB_URL: jdbc:postgresql://postgres:5432/shopifake_test
   DB_DRIVER: org.postgresql.Driver
   DB_DIALECT: org.hibernate.dialect.PostgreSQLDialect
@@ -43,7 +43,18 @@ services:
   gateway:
     image: shopifake-gateway:test-local
     environment:
-      <<: *spring-dev
+      <<: *spring-prod
+      SERVICES_ACCESS_URL: http://access:8080
+      SERVICES_AUDIT_URL: http://audit:8080
+      SERVICES_CATALOG_URL: http://catalog:8080
+      SERVICES_CUSTOMERS_URL: http://customers:8080
+      SERVICES_INVENTORY_URL: http://inventory:8080
+      SERVICES_ORDERS_URL: http://orders:8080
+      SERVICES_PRICING_URL: http://pricing:8080
+      SERVICES_RECOMMENDER_URL: http://recommender:8000
+      SERVICES_SALES_DASHBOARD_URL: http://sales-dashboard:8080
+      SERVICES_SITES_URL: http://sites:8080
+      SERVICES_CHATBOT_URL: http://chatbot:8000
     ports:
       - "8080:8080"
     depends_on:
@@ -77,11 +88,16 @@ services:
         condition: service_healthy
       auth-b2e:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   access:
     image: shopifake-access:test-local
     environment:
-      <<: *spring-dev
+      <<: *spring-prod
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,7 +110,7 @@ services:
   audit:
     image: shopifake-audit:test-local
     environment:
-      <<: *spring-dev
+      <<: *spring-prod
     depends_on:
       postgres:
         condition: service_healthy
@@ -107,7 +123,7 @@ services:
   catalog:
     image: shopifake-catalog:test-local
     environment:
-      <<: *spring-dev
+      <<: *spring-prod
     depends_on:
       postgres:
         condition: service_healthy
@@ -120,7 +136,7 @@ services:
   customers:
     image: shopifake-customers:test-local
     environment:
-      <<: *spring-dev
+      <<: *spring-prod
     depends_on:
       postgres:
         condition: service_healthy
@@ -133,7 +149,7 @@ services:
   inventory:
     image: shopifake-inventory:test-local
     environment:
-      <<: *spring-dev
+      <<: *spring-prod
     depends_on:
       postgres:
         condition: service_healthy
@@ -146,7 +162,7 @@ services:
   orders:
     image: shopifake-orders:test-local
     environment:
-      <<: *spring-dev
+      <<: *spring-prod
     depends_on:
       postgres:
         condition: service_healthy
@@ -159,7 +175,7 @@ services:
   pricing:
     image: shopifake-pricing:test-local
     environment:
-      <<: *spring-dev
+      <<: *spring-prod
     depends_on:
       postgres:
         condition: service_healthy
@@ -172,7 +188,7 @@ services:
   sales-dashboard:
     image: shopifake-sales-dashboard:test-local
     environment:
-      <<: *spring-dev
+      <<: *spring-prod
     depends_on:
       postgres:
         condition: service_healthy
@@ -185,7 +201,7 @@ services:
   sites:
     image: shopifake-sites:test-local
     environment:
-      <<: *spring-dev
+      <<: *spring-prod
     depends_on:
       postgres:
         condition: service_healthy
@@ -213,16 +229,30 @@ services:
 
   auth-b2c:
     image: shopifake-auth-b2c:test-local
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://testuser:testpass@postgres:5432/shopifake_test
+      BETTER_AUTH_SECRET: test-secret-key-for-development-only-min-32-chars
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   auth-b2e:
     image: shopifake-auth-b2e:test-local
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://testuser:testpass@postgres:5432/shopifake_test
+      BETTER_AUTH_SECRET: test-secret-key-for-development-only-min-32-chars
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
