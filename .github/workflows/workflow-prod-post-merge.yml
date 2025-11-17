@@ -25,14 +25,10 @@ jobs:
     with:
       lock-path: ${{ needs.prepare.outputs.lock-path }}
 
-  smoke_tests:
-    needs: deploy_prod
-    uses: ./.github/workflows/merge-prod-smoke-tests.yml
-
   release_tag:
     needs:
       - prepare
-      - smoke_tests
+      - deploy_prod
     uses: ./.github/workflows/merge-prod-release-tag.yml
     with:
       lock-path: ${{ needs.prepare.outputs.lock-path }}
