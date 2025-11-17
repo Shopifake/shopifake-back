@@ -98,6 +98,7 @@ services:
     environment:
       <<: *spring-prod
       DB_URL: jdbc:postgresql://postgres:5432/shopifake_access
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_access
     depends_on:
       postgres:
         condition: service_healthy
@@ -112,6 +113,7 @@ services:
     environment:
       <<: *spring-prod
       DB_URL: jdbc:postgresql://postgres:5432/shopifake_audit
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_audit
     depends_on:
       postgres:
         condition: service_healthy
@@ -126,6 +128,7 @@ services:
     environment:
       <<: *spring-prod
       DB_URL: jdbc:postgresql://postgres:5432/shopifake_catalog
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_catalog
     depends_on:
       postgres:
         condition: service_healthy
@@ -140,6 +143,7 @@ services:
     environment:
       <<: *spring-prod
       DB_URL: jdbc:postgresql://postgres:5432/shopifake_customers
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_customers
     depends_on:
       postgres:
         condition: service_healthy
@@ -154,6 +158,7 @@ services:
     environment:
       <<: *spring-prod
       DB_URL: jdbc:postgresql://postgres:5432/shopifake_inventory
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_inventory
     depends_on:
       postgres:
         condition: service_healthy
@@ -168,6 +173,7 @@ services:
     environment:
       <<: *spring-prod
       DB_URL: jdbc:postgresql://postgres:5432/shopifake_orders
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_orders
     depends_on:
       postgres:
         condition: service_healthy
@@ -182,6 +188,7 @@ services:
     environment:
       <<: *spring-prod
       DB_URL: jdbc:postgresql://postgres:5432/shopifake_pricing
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_pricing
     depends_on:
       postgres:
         condition: service_healthy
@@ -196,6 +203,7 @@ services:
     environment:
       <<: *spring-prod
       DB_URL: jdbc:postgresql://postgres:5432/shopifake_sales_dashboard
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_sales_dashboard
     depends_on:
       postgres:
         condition: service_healthy
@@ -210,6 +218,7 @@ services:
     environment:
       <<: *spring-prod
       DB_URL: jdbc:postgresql://postgres:5432/shopifake_sites
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_sites
     depends_on:
       postgres:
         condition: service_healthy
