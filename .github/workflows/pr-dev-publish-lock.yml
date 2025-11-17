@@ -29,15 +29,25 @@ jobs:
           echo "Generated lock file:"
           cat "artefacts/lock/${{ inputs.lock-filename }}"
 
+      - name: Read lock content
+        id: lock-content
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          LOCK_FILE="artefacts/lock/${{ inputs.lock-filename }}"
+          {
+            echo 'lock_body<<EOF'
+            echo "✅ Lock generated successfully."
+            echo ""
+            echo '```'
+            cat "$LOCK_FILE"
+            echo '```'
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
       - name: Comment on pull request
         if: ${{ github.event_name == 'pull_request' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.number }}
-          body: |
-            ✅ Lock generated successfully.
-
-            ```
-            $(cat artefacts/lock/${{ inputs.lock-filename }})
-            ```
+          body: ${{ steps.lock-content.outputs.lock_body }}
 
