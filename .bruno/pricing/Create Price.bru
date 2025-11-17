@@ -1,0 +1,41 @@
+meta {
+  name: Create Product Price
+  type: http
+  seq: 30
+}
+
+post {
+  url: {{baseUrl}}/api/prices
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "productId": "{{productId}}",
+    "amount": 49.99,
+    "currency": "USD"
+  }
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8083
+}
+
+script:post-response {
+  bru.setEnvVar("priceId", res.body.id);
+}
+
+docs {
+  # Create Product Price
+  
+  Sets or overrides the active price for a product.
+  
+  - `amount` must be positive.
+  - `currency` accepts ISO codes supported by the pricing service (USD, EUR, GBP, CAD).
+  - When a new ACTIVE price is created, previous active prices automatically move to `EXPIRED`.
+}

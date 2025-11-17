@@ -1,0 +1,48 @@
+meta {
+  name: Update Site Status
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/sites/{{siteId}}/status
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "status": "ACTIVE"
+  }
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8080
+}
+
+docs {
+  # Update Site Status
+  
+  Updates only the status of a site.
+  
+  Uses the `{{siteId}}` environment variable which is automatically set when creating a site.
+  
+  ## Valid Status Values
+  - DRAFT
+  - ACTIVE
+  - PENDING
+  - SUSPENDED
+  - ARCHIVED
+  - DISABLED
+  - DELETED
+  
+  Note: Status values are case-insensitive (will be converted to uppercase).
+  
+  ## Response Format
+  Returns the updated site with the new status.
+}
+

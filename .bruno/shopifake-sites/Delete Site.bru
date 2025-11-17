@@ -1,0 +1,39 @@
+meta {
+  name: Delete Site
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/sites/{{siteId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8080
+}
+
+script:post-response {
+  if (res.status == 204) {
+    bru.setEnvVar("siteId", "")
+  }
+}
+
+docs {
+  # Delete Site
+  
+  Deletes a site by its ID.
+  
+  Uses the `{{siteId}}` environment variable which is automatically set when creating a site.
+  
+  ## Response
+  - **204 No Content**: Site deleted successfully
+  - **404 Not Found**: Site not found
+  
+  **Warning**: This operation is irreversible. The site will be permanently deleted from the database.
+}

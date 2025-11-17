@@ -1,0 +1,20 @@
+name: Staging Tests
+
+on:
+  workflow_call:
+
+jobs:
+  deploy-test-job:
+    name: Deploy Test Job to Staging Cluster
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy Kubernetes Job for tests
+        run: |
+          # TODO: Deploy K8s Job with test-runner in staging cluster
+          # - Image: ghcr.io/shopifake/shopifake-test-runner:latest
+          # - Args: --mode staging --suite all --verbose
+          # - Env: BASE_URL=https://staging-api.shopifake.com, GITHUB_TOKEN
+          # - On success: pod creates promotion PR staging→main
+          # - On failure: pod sends email notification
+          echo "TODO: Implement K8s Job deployment"

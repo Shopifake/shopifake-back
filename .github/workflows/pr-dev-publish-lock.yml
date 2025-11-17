@@ -1,0 +1,53 @@
+name: Publish Lock Summary
+
+on:
+  workflow_call:
+    inputs:
+      lock-artifact-name:
+        description: 'Name of the artefact containing the lock'
+        required: true
+        type: string
+      lock-filename:
+        description: 'Filename of the lock within the artefact'
+        required: true
+        type: string
+
+jobs:
+  publish-lock:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download lock artefact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.lock-artifact-name }}
+          path: artefacts/lock
+
+      - name: Display lock preview
+        run: |
+          echo "Generated lock file:"
+          cat "artefacts/lock/${{ inputs.lock-filename }}"
+
+      - name: Read lock content
+        id: lock-content
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          LOCK_FILE="artefacts/lock/${{ inputs.lock-filename }}"
+          {
+            echo 'lock_body<<EOF'
+            echo "✅ Lock generated successfully."
+            echo ""
+            echo '```'
+            cat "$LOCK_FILE"
+            echo '```'
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Comment on pull request
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.number }}
+          body: ${{ steps.lock-content.outputs.lock_body }}
+

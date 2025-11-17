@@ -1,0 +1,67 @@
+{
+  "shopifake-access": {
+    "repository": "ghcr.io/shopifake/shopifake-access",
+    "tag_prefix": "main-"
+  },
+  "shopifake-audit": {
+    "repository": "ghcr.io/shopifake/shopifake-audit",
+    "tag_prefix": "main-"
+  },
+  "shopifake-catalog": {
+    "repository": "ghcr.io/shopifake/shopifake-catalog",
+    "tag_prefix": "main-"
+  },
+  "shopifake-customers": {
+    "repository": "ghcr.io/shopifake/shopifake-customers",
+    "tag_prefix": "main-"
+  },
+  "shopifake-inventory": {
+    "repository": "ghcr.io/shopifake/shopifake-inventory",
+    "tag_prefix": "main-"
+  },
+  "shopifake-orders": {
+    "repository": "ghcr.io/shopifake/shopifake-orders",
+    "tag_prefix": "main-"
+  },
+  "shopifake-pricing": {
+    "repository": "ghcr.io/shopifake/shopifake-pricing",
+    "tag_prefix": "main-"
+  },
+  "shopifake-sales-dashboard": {
+    "repository": "ghcr.io/shopifake/shopifake-sales-dashboard",
+    "tag_prefix": "main-"
+  },
+  "shopifake-sites": {
+    "repository": "ghcr.io/shopifake/shopifake-sites",
+    "tag_prefix": "main-"
+  },
+  "shopifake-chatbot": {
+    "repository": "ghcr.io/shopifake/shopifake-chatbot",
+    "tag_prefix": "sha-"
+  },
+  "shopifake-recommender": {
+    "repository": "ghcr.io/shopifake/shopifake-recommender",
+    "tag_prefix": "sha-"
+  },
+  "shopifake-gateway": {
+    "repository": "ghcr.io/shopifake/shopifake-gateway",
+    "tag_prefix": "main-"
+  },
+  "shopifake-bus": {
+    "repository": "ghcr.io/shopifake/shopifake-bus",
+    "tag_prefix": "sha-"
+  },
+  "shopifake-auth-b2c": {
+    "repository": "ghcr.io/shopifake/shopifake-auth-b2c",
+    "tag_prefix": "sha-"
+  },
+  "shopifake-auth-b2e": {
+    "repository": "ghcr.io/shopifake/shopifake-auth-b2e",
+    "tag_prefix": "sha-"
+  },
+  "shopifake-test-runner": {
+    "repository": "ghcr.io/shopifake/shopifake-test-runner",
+    "tag_prefix": "sha-"
+  }
+}
+

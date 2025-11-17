@@ -1,0 +1,34 @@
+meta {
+  name: Create Inventory Record
+  type: http
+  seq: 20
+}
+
+post {
+  url: {{baseUrl}}/api/inventory
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "productId": "{{productId}}",
+    "initialQuantity": 25
+  }
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8082
+}
+
+docs {
+  # Create Inventory Record
+  
+  Initializes stock tracking for a product. The `productId` is reused from the catalog request output.
+  
+  - `initialQuantity` sets available on-hand units and seeds the initial status.
+}

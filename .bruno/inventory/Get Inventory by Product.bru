@@ -1,0 +1,25 @@
+meta {
+  name: Get Inventory by Product
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{baseUrl}}/api/inventory/{{productId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8082
+}
+
+docs {
+  # Get Inventory by Product
+  
+  Returns the stock snapshot (available, reserved, status) for the specified product.
+}

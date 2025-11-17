@@ -1,0 +1,26 @@
+name: Production Smoke Tests
+
+on:
+  workflow_call:
+    inputs:
+      smoke-command:
+        description: 'Command to run smoke tests'
+        required: false
+        type: string
+        default: 'bash scripts/tests/run-smoke-tests.sh'
+
+jobs:
+  smoke-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run smoke tests
+        env:
+          ENV: prod
+          API_BASE_URL: ${{ secrets.PROD_API_URL }}
+        run: |
+          set -euo pipefail
+          ${{ inputs.smoke-command }}
+
