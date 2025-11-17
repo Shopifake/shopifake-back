@@ -6,9 +6,32 @@ on:
 jobs:
   healthcheck:
     runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    env:
+      KUBECONFIG: /tmp/kubeconfig
+      NAMESPACE: shopifake-prod
+
     steps:
-      - name: Run production health checks
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup kubeconfig
+        env:
+          KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG }}
         run: |
-          echo "TODO: implement health check for production"
+          echo "$KUBECONFIG_BASE64" | base64 -d > $KUBECONFIG
+          chmod 600 $KUBECONFIG
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+
+      - name: Run production cluster health checks
+        run: |
+          echo "TODO: Verify production cluster is healthy before deployment"
+          # kubectl get nodes
+          # kubectl get pods -n $NAMESPACE
           # scripts/cluster/healthcheck.sh --env prod
 
