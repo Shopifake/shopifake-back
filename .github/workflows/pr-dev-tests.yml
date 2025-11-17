@@ -49,10 +49,12 @@ jobs:
           
           # Extract image tags from lock, filtering only services defined in images.json
           # This automatically excludes monitoring/infra services without GHCR images
+          # Exclude test-runner as it's pulled separately, not with the stack
           # Format: SERVICE_NAME=ghcr.io/owner/image:tag
           IMAGE_MAP=$(jq -r --slurpfile registry "$IMAGES_JSON" '
             .services | to_entries[] | 
             select($registry[0][.key] != null) |
+            select(.key != "shopifake-test-runner") |
             "\(.key | ascii_upcase)=\(.value.image.repository):\(.value.image.tag)"
           ' "$LOCK_FILE")
           
@@ -110,9 +112,11 @@ jobs:
           
           # Extract images and map to docker-compose service names
           # Filter only services defined in images.json (same logic as pull step)
+          # Exclude test-runner as it's run separately, not as part of the stack
           jq -r --slurpfile registry "$IMAGES_JSON" '
             .services | to_entries[] | 
             select($registry[0][.key] != null) |
+            select(.key != "shopifake-test-runner") |
             "\(.key)\t\(.value.image.repository):\(.value.image.tag)"
           ' "$LOCK_FILE" | while IFS=$'\t' read -r service_name image_ref; do
               # Remove 'shopifake-' prefix for docker-compose service name
@@ -159,7 +163,7 @@ jobs:
 
       - name: Pull test-runner image
         run: |
-          # Extract test-runner image from lock
+          # Extract test-runner image from lock (excluded from stack compose-override)
           LOCK_FILE="locks/${{ inputs.lock-filename }}"
           TEST_RUNNER_IMAGE=$(jq -r '.services["shopifake-test-runner"].image.repository + ":" + .services["shopifake-test-runner"].image.tag' "$LOCK_FILE")
           echo "Pulling test-runner image: $TEST_RUNNER_IMAGE"
