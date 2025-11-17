@@ -1,0 +1,70 @@
+meta {
+  name: Create Site
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/sites
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Owner-Id: {{ownerId}}
+}
+
+body:json {
+  {
+    "name": "Analog Atlas",
+    "slug": "analog-atlas",
+    "description": "Curated records, hi-fi essentials, and limited artist drops",
+    "currency": "USD",
+    "language": "EN",
+    "config": "{\n  \"bannerUrl\": \"https://as1.ftcdn.net/jpg/04/64/70/80/1000_F_464708086_IyYKIbcIMzVBpN0HOKveCxjEArkd9n3b.jpg\",\n  \"name\": \"Analog Atlas\",\n  \"title\": \"Analog Atlas Vinyl & Audio\",\n  \"subtitle\": \"Curated records, hi-fi essentials, and limited artist drops\",\n  \"heroDescription\": \"Hand-picked analog records, hi-fi gear, and live in-store sessions every week.\",\n  \"logoUrl\": \"https://ravennaareachamber.com/wp-content/uploads/2017/03/your-company-lsiting.png\",\n  \"aboutPortraitOneUrl\": \"https://images.unsplash.com/photo-1518895949257-7621c3c786d4?auto=format&fit=crop&w=900&q=80\",\n  \"aboutLandscapeUrl\": \"https://images.unsplash.com/photo-1522175142171-0420f1e3a7da?auto=format&fit=crop&w=1200&q=80\",\n  \"aboutPortraitTwoUrl\": \"https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=900&q=80\",\n  \"history\": \"Analog Atlas opened as a pop-up listening bar in 2016, quickly becoming a haven for crate diggers and sound designers alike. Every pressing we stock is auditioned in-house, pairing warm analog nuance with contemporary audio gear.\",\n  \"values\": [\n    \"Limited-run pressings sourced directly from independent labels worldwide.\",\n    \"Hi-fi consultants on staff to help dial in the perfect home listening setup.\",\n    \"Monthly artist sessions streamed live from our in-store studio.\",\n    \"Carbon-neutral shipping with reusable mailers for collectors.\"\n  ],\n  \"contactHeading\": \"Visit the Listening Bar\",\n  \"contactDescription\": \"Drop into our Brooklyn flagship to spin new arrivals, book a private listening suite, or tune into a live DJ set.\",\n  \"contactDetails\": \"📍 421 Wythe Ave, Brooklyn, NY\\n📧 crew@analogatlas.com\\n📞 +1 (347) 555-2046\",\n  \"contactExtraNote\": \"Free stylus tune-ups every first Saturday of the month\",\n  \"primaryColor\": \"#000000\",\n  \"secondaryColor\": \"#000000\"\n}"
+  }
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8080
+  ownerId: 11111111-1111-1111-1111-111111111111
+}
+
+script:post-response {
+  bru.setEnvVar("siteId", res.body.id);
+}
+
+docs {
+  # Create Site
+  
+  Creates a new site with the provided details and configuration.
+  
+  ## Valid Currency Values
+  - USD (US Dollar)
+  - EUR (Euro)
+  - GBP (British Pound)
+  - JPY (Japanese Yen)
+  - CAD (Canadian Dollar)
+  - AUD (Australian Dollar)
+  - CHF (Swiss Franc)
+  - CNY (Chinese Yuan)
+  
+  ## Valid Language Values
+  - EN (English)
+  - FR (French)
+  - DE (German)
+  - ES (Spanish)
+  - IT (Italian)
+  - PT (Portuguese)
+  - NL (Dutch)
+  - JA (Japanese)
+  - ZH (Chinese Simplified)
+  
+  Note: Currency and language values are case-insensitive (will be converted to uppercase).
+  
+  The `config` field must be a valid JSON string matching the SiteConfig structure.
+  
+  The site ID from the response is automatically stored in the `siteId` environment variable.
+}
+

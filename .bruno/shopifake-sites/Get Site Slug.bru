@@ -1,0 +1,34 @@
+meta {
+  name: Get Site Slug
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/sites/{{siteId}}/slug
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8080
+}
+
+docs {
+  # Get Site Slug
+  
+  Retrieves only the slug of a site by its UUID.
+  
+  Uses the `{{siteId}}` environment variable which is automatically set when creating a site.
+  
+  ## Response Format
+  Returns:
+  - `slug`: The slug of the site
+  
+  This endpoint is useful when you only need the slug without fetching all site details.
+}
+

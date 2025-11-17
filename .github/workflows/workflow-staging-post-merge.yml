@@ -1,0 +1,56 @@
+name: CI Staging Post Merge
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    uses: ./.github/workflows/merge-staging-prepare.yml
+
+  staging_healthcheck:
+    needs: prepare
+    uses: ./.github/workflows/merge-staging-healthcheck.yml
+    with:
+        environment: staging
+    secrets:
+        KUBECONFIG: ${{ secrets.KUBECONFIG }}
+
+  build_test_image:
+    name: Build Test Runner Image
+    uses: ./.github/workflows/merge-staging-build-test-image.yml
+
+  deploy_staging:
+    needs:
+      - prepare
+      - staging_healthcheck
+    uses: ./.github/workflows/merge-staging-deploy.yml
+    with:
+      lock-path: ${{ needs.prepare.outputs.lock-path }}
+
+  tests_staging:
+    needs:
+      - deploy_staging
+      - build_test_image
+    uses: ./.github/workflows/merge-staging-tests.yml
+    # TODO: Use test image from build_test_image to run tests as K8s Job in staging cluster
+
+
+  promotion_pr:
+    needs: tests_staging
+    if: needs.tests_staging.result == 'success'
+    uses: ./.github/workflows/merge-staging-create-promotion-pr.yml
+    with:
+      base-branch: main
+      head-branch: staging
+      title: "chore: promote staging to main"
+      body: |
+        This PR promotes the latest staging lock to main.
+
+
