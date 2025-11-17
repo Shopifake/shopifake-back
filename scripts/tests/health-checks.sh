@@ -18,11 +18,37 @@ check_service_health() {
 
   echo -n "[health-check] Testing $service_name ... "
 
-  if curl -sf "$url" > /dev/null 2>&1; then
-    echo -e "${GREEN}✓ UP${NC}"
-    return 0
+  # Capture curl output and HTTP status code
+  local http_code
+  local curl_output
+  curl_output=$(curl -sf -w "\n%{http_code}" "$url" 2>&1)
+  local curl_exit=$?
+
+  if [ $curl_exit -eq 0 ]; then
+    # Extract HTTP status code (last line)
+    http_code=$(echo "$curl_output" | tail -n1)
+    # Extract response body (all lines except last)
+    local response_body=$(echo "$curl_output" | sed '$d')
+    
+    if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+      echo -e "${GREEN}✓ UP${NC} (HTTP $http_code)"
+      return 0
+    else
+      echo -e "${RED}✗ DOWN${NC} (HTTP $http_code)"
+      echo "    URL: $url"
+      if [ -n "$response_body" ]; then
+        echo "    Response: $response_body"
+      fi
+      return 1
+    fi
   else
+    # curl failed (connection error, DNS error, etc.)
     echo -e "${RED}✗ DOWN${NC}"
+    echo "    URL: $url"
+    echo "    Error: Failed to connect or invalid response"
+    if [ -n "$curl_output" ]; then
+      echo "    Details: $(echo "$curl_output" | head -n1)"
+    fi
     return 1
   fi
 }
