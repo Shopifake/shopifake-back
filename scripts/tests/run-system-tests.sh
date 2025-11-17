@@ -32,8 +32,9 @@ if [[ "$ENV" == "staging" ]]; then
   BASE_URL="$API_BASE_URL"
   echo "Target: $BASE_URL (deployed staging)"
 else
-  BASE_URL="http://gateway:8080"
-  echo "Target: $BASE_URL (local docker-compose)"
+  # In local mode, use localhost since tests run on the host (CI runner) and gateway port is mapped
+  BASE_URL="http://localhost:8080"
+  echo "Target: $BASE_URL (local docker-compose via port mapping)"
 fi
 
 # Run health checks for all services

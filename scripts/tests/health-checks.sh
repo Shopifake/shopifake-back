@@ -86,6 +86,8 @@ run_all_health_checks() {
   done
 
   # Auth services (Node.js/custom health endpoints)
+  # Note: These services use /healthz endpoint, not /health
+  # They may not be routed through gateway, so check if gateway routes exist first
   echo ""
   echo "--- Auth Services ---"
   local auth_services=(
@@ -94,7 +96,8 @@ run_all_health_checks() {
   )
 
   for service in "${auth_services[@]}"; do
-    local health_url="$base_url/api/$service/health"
+    # Auth services use /healthz endpoint (if routed through gateway)
+    local health_url="$base_url/api/$service/healthz"
     if ! check_service_health "$service" "$health_url"; then
       failed_services+=("$service")
     fi
