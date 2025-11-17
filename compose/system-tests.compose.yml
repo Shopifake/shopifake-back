@@ -2,12 +2,16 @@ version: "3.9"
 
 x-default-env: &spring-prod
   SPRING_PROFILES_ACTIVE: prod
-  DB_URL: jdbc:postgresql://postgres:5432/shopifake_test
-  DB_DRIVER: org.postgresql.Driver
-  DB_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+  # Production profile expects DB_HOST, DB_PORT, DB_NAME (not DB_URL)
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_NAME: shopifake_test
   DB_USERNAME: testuser
   DB_PASSWORD: testpass
   PORT: 8080
+  # CORS settings for production
+  CORS_ALLOWED_ORIGINS: "*"
+  CORS_ALLOW_CREDENTIALS: "true"
 
 services:
   postgres:
