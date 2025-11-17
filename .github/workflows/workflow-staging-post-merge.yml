@@ -34,6 +34,7 @@ jobs:
     uses: ./.github/workflows/merge-staging-deploy.yml
     with:
       lock-path: ${{ needs.prepare.outputs.lock-path }}
+    secrets: inherit
 
   tests_staging:
     needs:
