@@ -1,7 +1,6 @@
 x-default-env: &spring-prod
   # Spring Boot datasource configuration
   # Provide both placeholder variables AND Spring Boot env var for maximum compatibility
-  SPRING_PROFILES_ACTIVE: prod 
   DB_HOST: postgres
   DB_PORT: 5432
   DB_USERNAME: shopifake
@@ -140,11 +139,12 @@ services:
     image: shopifake-catalog:test-local
     environment:
       <<: *spring-prod
+      SPRING_PROFILES_ACTIVE: "prod"
       DB_NAME: shopifake_catalog
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["/app/application", "--spring.profiles.active=prod"]  
+    command: ["/app/application"]  
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 10s
