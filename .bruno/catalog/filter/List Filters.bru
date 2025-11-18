@@ -1,0 +1,22 @@
+meta {
+  name: List Filters
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/catalog/filters?siteId={{siteId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  # List Filters
+  
+  Lists all filter definitions for the provided `siteId`. Omit the query
+  parameter to inspect every filter available in the catalog service.
+}

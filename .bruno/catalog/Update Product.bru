@@ -5,7 +5,7 @@ meta {
 }
 
 patch {
-  url: {{baseUrl}}/api/products/{{productId}}
+  url: {{baseUrl}}/api/catalog/products/{{productId}}
   body: json
   auth: none
 }
@@ -23,11 +23,6 @@ body:json {
       "restock"
     ]
   }
-}
-
-vars:pre-request {
-  baseUrl: http://localhost:8081
-  productId: {{env.productId}}
 }
 
 docs {

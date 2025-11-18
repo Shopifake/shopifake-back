@@ -9,7 +9,7 @@
   },
   "shopifake-catalog": {
     "repository": "ghcr.io/shopifake/shopifake-catalog",
-    "tag_prefix": "main-"
+    "tag_prefix": "main-native-"
   },
   "shopifake-customers": {
     "repository": "ghcr.io/shopifake/shopifake-customers",

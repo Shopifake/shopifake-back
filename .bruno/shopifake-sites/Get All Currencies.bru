@@ -1,7 +1,7 @@
 meta {
   name: Get All Currencies
   type: http
-  seq: 10
+  seq: 11
 }
 
 get {
@@ -14,10 +14,6 @@ headers {
   Content-Type: application/json
 }
 
-vars:pre-request {
-  baseUrl: http://localhost:8080
-}
-
 docs {
   # Get All Currencies
   
@@ -28,4 +24,3 @@ docs {
   - `currencies`: Array of supported currency codes (USD, EUR, GBP, JPY, CAD, AUD, CHF, CNY)
   - `count`: Number of supported currencies
 }
-

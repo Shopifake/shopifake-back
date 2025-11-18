@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/api/categories
+  url: {{baseUrl}}/api/catalog/products/categories
   body: json
   auth: none
 }
@@ -20,10 +20,6 @@ body:json {
     "name": "Accessories",
     "description": "Belts, hats, straps"
   }
-}
-
-vars:pre-request {
-  baseUrl: http://localhost:8081
 }
 
 script:post-response {

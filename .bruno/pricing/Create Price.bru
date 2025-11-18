@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/api/prices
+  url: {{baseUrl}}/api/pricing/prices
   body: json
   auth: none
 }
@@ -20,10 +20,6 @@ body:json {
     "amount": 49.99,
     "currency": "USD"
   }
-}
-
-vars:pre-request {
-  baseUrl: http://localhost:8083
 }
 
 script:post-response {

@@ -1,7 +1,7 @@
 meta {
   name: Get Site Slug
   type: http
-  seq: 11
+  seq: 12
 }
 
 get {
@@ -12,10 +12,6 @@ get {
 
 headers {
   Content-Type: application/json
-}
-
-vars:pre-request {
-  baseUrl: http://localhost:8080
 }
 
 docs {
@@ -31,4 +27,3 @@ docs {
   
   This endpoint is useful when you only need the slug without fetching all site details.
 }
-

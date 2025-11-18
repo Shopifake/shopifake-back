@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/products?siteId={{siteId}}&status={{status}}
+  url: {{baseUrl}}/api/catalog/products?siteId={{siteId}}&status={{status}}
   body: none
   auth: none
 }
@@ -15,7 +15,6 @@ headers {
 }
 
 vars:pre-request {
-  baseUrl: http://localhost:8081
   status: PUBLISHED
 }
 

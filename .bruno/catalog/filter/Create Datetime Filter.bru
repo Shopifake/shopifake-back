@@ -1,0 +1,32 @@
+meta {
+  name: Create Datetime Filter
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/catalog/filters
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "siteId": "{{siteId}}",
+    "categoryId": "{{categoryId}}",
+    "key": "availability-window",
+    "type": "DATETIME",
+    "displayName": "Availability Window"
+  }
+}
+
+docs {
+  # Create Datetime Filter
+  
+  Defines a datetime-based filter tied to a specific category (e.g., availability
+  windows). No `unit` or `values` fields are required for this filter type.
+}
