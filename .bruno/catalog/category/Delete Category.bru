@@ -5,13 +5,9 @@ meta {
 }
 
 delete {
-  url: {{baseUrl}}/api/categories/{{categoryId}}
+  url: {{baseUrl}}/api/catalog/products/categories/{{categoryId}}
   body: none
   auth: none
-}
-
-vars:pre-request {
-  baseUrl: http://localhost:8081
 }
 
 script:post-response {

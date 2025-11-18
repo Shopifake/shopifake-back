@@ -1,7 +1,7 @@
 meta {
   name: Delete Site
   type: http
-  seq: 6
+  seq: 7
 }
 
 delete {
@@ -12,10 +12,6 @@ delete {
 
 headers {
   Content-Type: application/json
-}
-
-vars:pre-request {
-  baseUrl: http://localhost:8080
 }
 
 script:post-response {

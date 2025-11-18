@@ -5,17 +5,13 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/prices/product/{{productId}}
+  url: {{baseUrl}}/api/pricing/prices/product/{{productId}}
   body: none
   auth: none
 }
 
 headers {
   Accept: application/json
-}
-
-vars:pre-request {
-  baseUrl: http://localhost:8083
 }
 
 docs {

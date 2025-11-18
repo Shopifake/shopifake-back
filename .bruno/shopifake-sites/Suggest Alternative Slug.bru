@@ -1,7 +1,7 @@
 meta {
   name: Suggest Alternative Slug
   type: http
-  seq: 7
+  seq: 8
 }
 
 get {
@@ -12,10 +12,6 @@ get {
 
 headers {
   Content-Type: application/json
-}
-
-vars:pre-request {
-  baseUrl: http://localhost:8080
 }
 
 docs {
@@ -32,4 +28,3 @@ docs {
   - `suggestedSlug`: An available alternative slug
   - `message`: A descriptive message about the suggestion
 }
-

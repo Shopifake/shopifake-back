@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/api/products
+  url: {{baseUrl}}/api/catalog/products
   body: json
   auth: none
 }
@@ -29,16 +29,11 @@ body:json {
     "status": "DRAFT",
     "filters": [
       {
-        "key": "material",
-        "type": "CATEGORICAL",
+        "filterId": "{{filterId}}",
         "textValue": "Organic Cotton"
       }
     ]
   }
-}
-
-vars:pre-request {
-  baseUrl: http://localhost:8081
 }
 
 script:post-response {
@@ -52,6 +47,7 @@ docs {
   
   - `siteId` must reference an existing site.
   - `categoryIds` must correspond to existing categories belonging to the same site.
-  - `status` accepts `DRAFT`, `PUBLISHED`, or `SCHEDULED`.
-  - `filters` let you predefine categorical/quantitative facets for the storefront.
+  - `status` accepts `DRAFT`, `PUBLISHED`, ou `SCHEDULED`.
+- `filters` est une liste d'objets `{ filterId, textValue|numericValue|min/max|start/end }`
+    permettant d'associer une valeur spécifique à chaque filtre.
 }

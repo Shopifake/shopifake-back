@@ -1,7 +1,7 @@
 meta {
   name: Get All Languages
   type: http
-  seq: 9
+  seq: 10
 }
 
 get {
@@ -14,10 +14,6 @@ headers {
   Content-Type: application/json
 }
 
-vars:pre-request {
-  baseUrl: http://localhost:8080
-}
-
 docs {
   # Get All Languages
   
@@ -28,4 +24,3 @@ docs {
   - `languages`: Array of supported language codes (EN, FR, DE, ES, IT, PT, NL, JA, ZH)
   - `count`: Number of supported languages
 }
-

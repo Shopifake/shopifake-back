@@ -1,0 +1,22 @@
+meta {
+  name: Delete Filter
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/catalog/filters/{{filterId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  # Delete Filter
+  
+  Deletes the referenced filter definition. The call succeeds only when no
+  products reference the filter; otherwise the service returns an error.
+}
