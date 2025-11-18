@@ -140,8 +140,6 @@ services:
     environment:
       <<: *spring-prod
       DB_NAME: shopifake_catalog
-      DB_URL: jdbc:postgresql://postgres:5432/shopifake_catalog
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_catalog
     depends_on:
       postgres:
         condition: service_healthy
