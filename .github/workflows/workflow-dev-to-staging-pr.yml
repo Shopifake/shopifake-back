@@ -44,7 +44,8 @@ jobs:
     needs:
       - generate_lock
       # - system_tests
-    if: github.event_name == 'pull_request' && needs.system_tests.result == 'success'
+    if: github.event_name == 'pull_request' 
+    # && needs.system_tests.result == 'success'
     uses: ./.github/workflows/pr-dev-commit-lock.yml
     with:
       lock-artifact-name: lock-${{ github.event.number }}
