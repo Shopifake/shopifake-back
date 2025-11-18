@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "commit": "5de488876b7be61cbc65de41c86ffee21f170a3c",
-    "generated_at": "2025-11-17T13:43:24.669259+00:00",
+    "commit": "1b225ec6389b7f73876a76b9a8bc90d67c0a4da0",
+    "generated_at": "2025-11-17T13:58:05.080985+00:00",
     "generator": "generate_lock.py@v1",
     "source_branch": "HEAD"
   },
@@ -47,10 +47,10 @@
       "submodule_path": "infra/shopifake-bus"
     },
     "shopifake-catalog": {
-      "git_sha": "0709b6bf1f6ee0b186002e6160da5c9d1d671aea",
+      "git_sha": "e4d932aa4e211e6f5fa91076286d7059ba5d2ab4",
       "image": {
         "repository": "ghcr.io/shopifake/shopifake-catalog",
-        "tag": "main-0709b6b"
+        "tag": "main-e4d932a"
       },
       "submodule_path": "services/shopifake-catalog"
     },

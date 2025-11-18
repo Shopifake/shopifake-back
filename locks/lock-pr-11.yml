@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "commit": "5de488876b7be61cbc65de41c86ffee21f170a3c",
-    "generated_at": "2025-11-17T13:43:24.669259+00:00",
+    "commit": "48d1809a7d66c63a76120c07e5ebc7caab5b6256",
+    "generated_at": "2025-11-17T15:03:13.769270+00:00",
     "generator": "generate_lock.py@v1",
     "source_branch": "HEAD"
   },
@@ -23,18 +23,18 @@
       "submodule_path": "services/shopifake-audit"
     },
     "shopifake-auth-b2c": {
-      "git_sha": "66a8cca1245714c087338b994334229c9d6af068",
+      "git_sha": "c2204eb80bdf0ffee826275a9a2dd714b90ce92e",
       "image": {
         "repository": "ghcr.io/shopifake/shopifake-auth-b2c",
-        "tag": "sha-66a8cca"
+        "tag": "sha-c2204eb"
       },
       "submodule_path": "infra/shopifake-auth-b2c"
     },
     "shopifake-auth-b2e": {
-      "git_sha": "e4a3b91a7dd918af82818019e129620a21e3ed48",
+      "git_sha": "7ad79eb5829f386e2845c2ce6908790692fe5942",
       "image": {
         "repository": "ghcr.io/shopifake/shopifake-auth-b2e",
-        "tag": "sha-e4a3b91"
+        "tag": "sha-7ad79eb"
       },
       "submodule_path": "infra/shopifake-auth-b2e"
     },
@@ -151,10 +151,10 @@
       "submodule_path": "services/shopifake-sites"
     },
     "shopifake-test-runner": {
-      "git_sha": "a080c5936d6ff6138d8acd3c0d14c8dee0da7d47",
+      "git_sha": "f0345aa4e83b758b0d069894c4df2a8c38fab19c",
       "image": {
         "repository": "ghcr.io/shopifake/shopifake-test-runner",
-        "tag": "sha-a080c59"
+        "tag": "sha-f0345aa"
       },
       "submodule_path": "infra/shopifake-test-runner"
     }
