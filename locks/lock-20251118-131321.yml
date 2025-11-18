@@ -50,7 +50,7 @@
       "git_sha": "e4d932aa4e211e6f5fa91076286d7059ba5d2ab4",
       "image": {
         "repository": "ghcr.io/shopifake/shopifake-catalog",
-        "tag": "main-e4d932a"
+        "tag": "main-native-8a509b4"
       },
       "submodule_path": "services/shopifake-catalog"
     },
