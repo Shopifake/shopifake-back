@@ -58,7 +58,7 @@
       "git_sha": "41001efcaff9aa51cd7a54dffc44496471f7347f",
       "image": {
         "repository": "ghcr.io/shopifake/shopifake-chatbot",
-        "tag": "sha-41001ef"
+        "tag": "main-native-8a509b4"
       },
       "submodule_path": "services/shopifake-chatbot"
     },
