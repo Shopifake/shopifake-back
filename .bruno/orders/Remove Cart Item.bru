@@ -1,0 +1,29 @@
+meta {
+  name: Remove Cart Item
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/orders/carts/items/{{cartItemId}}?siteId={{siteId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  X-User-Id: {{userId}}
+  X-Session-Id: {{sessionId}}
+}
+
+docs {
+  # Remove Cart Item
+  
+  Removes an item from the cart.
+  
+  - For logged-in users: provide `X-User-Id` header
+  - For guest users: provide `X-Session-Id` header (use the sessionId from previous cart responses)
+  - The `siteId` query parameter is required.
+  - The `cartItemId` path parameter identifies the item to remove.
+}
+

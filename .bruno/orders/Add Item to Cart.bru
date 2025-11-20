@@ -1,0 +1,46 @@
+meta {
+  name: Add Item to Cart
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/orders/carts/items?siteId={{siteId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-User-Id: 
+  X-Session-Id: {{sessionId}}
+}
+
+body:json {
+  {
+    "productId": "{{productId}}",
+    "quantity": 2
+  }
+}
+
+script:post-response {
+  if (res.body.sessionId) {
+    bru.setEnvVar("sessionId", res.body.sessionId);
+  }
+  if (res.body.items && res.body.items.length > 0) {
+    bru.setEnvVar("cartItemId", res.body.items[res.body.items.length - 1].id);
+  }
+}
+
+docs {
+  # Add Item to Cart
+  
+  Adds a product to the cart with specified quantity.
+  
+  - For logged-in users: provide `X-User-Id` header
+  - For guest users: optionally provide `X-Session-Id` header. If not provided, a sessionId will be auto-generated and returned in the response.
+  - The `siteId` query parameter is required.
+  - If the product already exists in the cart, the quantity will be increased.
+  
+  The cart item ID from the response is automatically stored in the `cartItemId` environment variable.
+}

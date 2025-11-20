@@ -1,0 +1,37 @@
+meta {
+  name: Update Cart Item
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/api/orders/carts/items/{{cartItemId}}?siteId={{siteId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-User-Id: {{userId}}
+  X-Session-Id: {{sessionId}}
+}
+
+body:json {
+  {
+    "quantity": 5
+  }
+}
+
+docs {
+  # Update Cart Item
+  
+  Updates the quantity of a cart item.
+  
+  - For logged-in users: provide `X-User-Id` header
+  - For guest users: provide `X-Session-Id` header (use the sessionId from previous cart responses)
+  - The `siteId` query parameter is required.
+  - The `cartItemId` path parameter identifies the item to update.
+  
+  The quantity must be at least 1.
+}
+

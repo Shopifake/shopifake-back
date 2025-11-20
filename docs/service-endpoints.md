@@ -1,6 +1,6 @@
 # Service API Endpoints
 
-Summary of the REST endpoints implemented for the catalog, inventory, and pricing services.
+Summary of the REST endpoints implemented for the catalog, inventory, pricing, and orders services.
 
 ---
 
@@ -116,6 +116,37 @@ Summary of the REST endpoints implemented for the catalog, inventory, and pricin
 
 - `GET /api/prices/product/{productId}/active`  
   Fetch the current active price. Returns 404 if none exists.
+
+---
+
+## Orders Service (`services/shopifake-orders`)
+
+### Cart API (`CartController`)
+- **DTOs**
+  - `AddToCartRequest`: `productId` (UUID), `quantity` (Integer ≥1).
+  - `UpdateCartItemRequest`: `quantity` (Integer ≥1).
+  - `CartItemResponse`: `id`, `productId`, `quantity`. Contains only product identifiers and quantity. Frontend should fetch product details (name, price, etc.) from catalog and pricing services.
+  - `CartResponse`: `id`, `userId`, `sessionId`, `siteId`, `items` (List<CartItemResponse>), timestamps. Contains only cart items with product identifiers. Frontend should fetch product details and calculate totals from catalog and pricing services.
+
+- **Authentication & Session Management**
+  - For logged-in users: provide `X-User-Id` header (UUID)
+  - For guest users: optionally provide `X-Session-Id` header. If not provided, a sessionId will be auto-generated and returned in the response. Frontend should store this sessionId (e.g., in localStorage) and include it in subsequent requests.
+  - All endpoints require `siteId` as a query parameter.
+
+- `GET /api/orders/carts?siteId={siteId}`  
+  Retrieves the cart for a user or session. Returns cart with all items. If sessionId was auto-generated, it will be included in the response.
+
+- `POST /api/orders/carts/items?siteId={siteId}`  
+  Adds a product to the cart with specified quantity. If the product already exists in the cart, the quantity will be increased. For guest users without sessionId, one will be auto-generated.
+
+- `PATCH /api/orders/carts/items/{itemId}?siteId={siteId}`  
+  Updates the quantity of a cart item. The quantity must be at least 1.
+
+- `DELETE /api/orders/carts/items/{itemId}?siteId={siteId}`  
+  Removes an item from the cart.
+
+- `DELETE /api/orders/carts?siteId={siteId}`  
+  Removes all items from the cart (clears the cart).
 
 ---
 

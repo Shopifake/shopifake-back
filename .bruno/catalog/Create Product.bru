@@ -30,7 +30,7 @@ body:json {
     "filters": [
       {
         "filterId": "{{filterId}}",
-        "textValue": "Organic Cotton"
+        "textValue": "Red"
       }
     ]
   }
@@ -48,6 +48,6 @@ docs {
   - `siteId` must reference an existing site.
   - `categoryIds` must correspond to existing categories belonging to the same site.
   - `status` accepts `DRAFT`, `PUBLISHED`, ou `SCHEDULED`.
-- `filters` est une liste d'objets `{ filterId, textValue|numericValue|min/max|start/end }`
+  - `filters` est une liste d'objets `{ filterId, textValue|numericValue|min/max|start/end }`
     permettant d'associer une valeur spécifique à chaque filtre.
 }

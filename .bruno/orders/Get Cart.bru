@@ -1,0 +1,35 @@
+meta {
+  name: Get Cart
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/orders/carts?siteId={{siteId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  X-User-Id: 
+  X-Session-Id: 
+}
+
+script:post-response {
+  if (res.status == 200) {
+    bru.setEnvVar("sessionId", res.body.sessionId);
+  }
+}
+
+docs {
+  # Get Cart
+  
+  Retrieves the cart for a user or session.
+  
+  - For logged-in users: provide `X-User-Id` header
+  - For guest users: optionally provide `X-Session-Id` header. If not provided, a sessionId will be auto-generated and returned in the response.
+  - The `siteId` query parameter is required.
+  
+  If a sessionId is auto-generated, it will be stored in the environment variable for subsequent requests.
+}
