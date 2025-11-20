@@ -65,8 +65,18 @@ jobs:
           DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
         run: |
           while read -r SERVICE_NAME; do
-            # TODO: Remove this once we have a way to deploy all databases
-            if [ "$SERVICE_NAME" != "shopifake-catalog" ]; then
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Only deploy databases for Java services in services/ directory
+            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/)"
+              continue
+            fi
+            
+            # Exclude Python services
+            if [[ "$SERVICE_NAME" == "shopifake-recommender" || "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (Python service)"
               continue
             fi
           
@@ -101,7 +111,18 @@ jobs:
           CORS_ALLOW_CREDENTIALS: ${{ secrets.CORS_ALLOW_CREDENTIALS }}
         run: |
           while read -r SERVICE_NAME; do
-            if [ "$SERVICE_NAME" != "shopifake-catalog" ]; then
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Only create configmaps for Java services in services/ directory
+            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/)"
+              continue
+            fi
+            
+            # Exclude Python services
+            if [[ "$SERVICE_NAME" == "shopifake-recommender" || "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (Python service)"
               continue
             fi
           
@@ -125,8 +146,18 @@ jobs:
           DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
         run: |
           while read -r SERVICE_NAME; do
-            # TODO: Remove this once we have a way to deploy all secrets
-            if [ "$SERVICE_NAME" != "shopifake-catalog" ]; then
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Only create secrets for Java services in services/ directory
+            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/)"
+              continue
+            fi
+            
+            # Exclude Python services
+            if [[ "$SERVICE_NAME" == "shopifake-recommender" || "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (Python service)"
               continue
             fi
           
@@ -145,11 +176,20 @@ jobs:
       - name: Deploy services
         run: |
           while read -r SERVICE_NAME; do
-            # TODO: Remove this once we have a way to deploy all services
-            if [ "$SERVICE_NAME" != "shopifake-catalog" ]; then
-              echo "Skipping $SERVICE_NAME"
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Only deploy Java services in services/ directory
+            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/)"
               continue
-            fi 
+            fi
+            
+            # Exclude Python services
+            if [[ "$SERVICE_NAME" == "shopifake-recommender" || "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (Python service)"
+              continue
+            fi
           
             IMAGE_REPO=$(jq -r ".services[\"$SERVICE_NAME\"].image.repository" ${{ inputs.lock-path }})
             IMAGE_TAG=$(jq -r ".services[\"$SERVICE_NAME\"].image.tag" ${{ inputs.lock-path }})
