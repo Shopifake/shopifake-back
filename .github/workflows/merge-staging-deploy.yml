@@ -220,21 +220,12 @@ jobs:
               exit 1
             fi
           
-            # Create temporary values file with envFrom
-            cat > /tmp/${SERVICE_NAME}-values.yaml << VALUESEOF
-          image:
-            repository: ${IMAGE_REPO}
-            tag: ${IMAGE_TAG}
-          envFrom:
-            - configMapRef:
-                name: ${SERVICE_NAME}-config
-            - secretRef:
-                name: ${SERVICE_NAME}-secret
-          VALUESEOF
-          
             helm upgrade --install "$SERVICE_NAME" "$CHART_PATH/chart" \
               --namespace $NAMESPACE \
-              -f /tmp/${SERVICE_NAME}-values.yaml \
+              --set image.repository="$IMAGE_REPO" \
+              --set image.tag="$IMAGE_TAG" \
+              --set "envFrom[0].configMapRef.name=${SERVICE_NAME}-config" \
+              --set "envFrom[1].secretRef.name=${SERVICE_NAME}-secret" \
               --wait \
               --timeout 5m
           
