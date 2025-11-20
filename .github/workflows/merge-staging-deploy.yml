@@ -62,7 +62,15 @@ jobs:
 
       - name: Deploy databases
         env:
+          DB_PASSWORD_ACCESS: ${{ secrets.DB_PASSWORD_ACCESS }}
+          DB_PASSWORD_AUDIT: ${{ secrets.DB_PASSWORD_AUDIT }}
           DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
+          DB_PASSWORD_CUSTOMERS: ${{ secrets.DB_PASSWORD_CUSTOMERS }}
+          DB_PASSWORD_INVENTORY: ${{ secrets.DB_PASSWORD_INVENTORY }}
+          DB_PASSWORD_ORDERS: ${{ secrets.DB_PASSWORD_ORDERS }}
+          DB_PASSWORD_PRICING: ${{ secrets.DB_PASSWORD_PRICING }}
+          DB_PASSWORD_SALES_DASHBOARD: ${{ secrets.DB_PASSWORD_SALES_DASHBOARD }}
+          DB_PASSWORD_SITES: ${{ secrets.DB_PASSWORD_SITES }}
         run: |
           while read -r SERVICE_NAME; do
             # Get submodule path to filter services
@@ -143,7 +151,15 @@ jobs:
 
       - name: Create secrets
         env:
+          DB_PASSWORD_ACCESS: ${{ secrets.DB_PASSWORD_ACCESS }}
+          DB_PASSWORD_AUDIT: ${{ secrets.DB_PASSWORD_AUDIT }}
           DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
+          DB_PASSWORD_CUSTOMERS: ${{ secrets.DB_PASSWORD_CUSTOMERS }}
+          DB_PASSWORD_INVENTORY: ${{ secrets.DB_PASSWORD_INVENTORY }}
+          DB_PASSWORD_ORDERS: ${{ secrets.DB_PASSWORD_ORDERS }}
+          DB_PASSWORD_PRICING: ${{ secrets.DB_PASSWORD_PRICING }}
+          DB_PASSWORD_SALES_DASHBOARD: ${{ secrets.DB_PASSWORD_SALES_DASHBOARD }}
+          DB_PASSWORD_SITES: ${{ secrets.DB_PASSWORD_SITES }}
         run: |
           while read -r SERVICE_NAME; do
             # Get submodule path to filter services
