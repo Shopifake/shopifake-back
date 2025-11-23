@@ -41,6 +41,16 @@ jobs:
         with:
           version: 'v3.15.0'
 
+      - name: Verify cluster connectivity
+        run: |
+          echo "Testing cluster connectivity..."
+          kubectl --kubeconfig=$KUBECONFIG cluster-info
+          kubectl --kubeconfig=$KUBECONFIG get namespace $NAMESPACE || {
+            echo "❌ Cannot access namespace $NAMESPACE"
+            exit 1
+          }
+          echo "✅ Cluster connectivity verified"
+
       - name: Extract test-runner image from lock
         id: image
         run: |
@@ -59,7 +69,13 @@ jobs:
         run: |
           JOB_NAME="test-runner-$(date +%s)"
           
+          echo "Deploying test-runner Job: $JOB_NAME"
+          echo "  Image: ${{ steps.image.outputs.repository }}:${{ steps.image.outputs.tag }}"
+          echo "  Gateway URL: $GATEWAY_URL"
+          echo "  Timeout: $TEST_TIMEOUT"
+          
           helm upgrade --install "$JOB_NAME" infra/shopifake-test-runner/chart \
+            --kubeconfig=$KUBECONFIG \
             --namespace $NAMESPACE \
             --set image.repository="${{ steps.image.outputs.repository }}" \
             --set image.tag="${{ steps.image.outputs.tag }}" \
@@ -75,19 +91,20 @@ jobs:
             --timeout 10m
           
           echo "JOB_NAME=$JOB_NAME" >> $GITHUB_ENV
+          echo "✅ Job deployed successfully"
 
       - name: Wait for Job completion
         run: |
           echo "Waiting for Job $JOB_NAME to complete..."
-          kubectl wait --for=condition=complete --timeout=10m \
-            job/$(kubectl get job -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1 | cut -d'/' -f2) \
+          kubectl --kubeconfig=$KUBECONFIG wait --for=condition=complete --timeout=10m \
+            job/$(kubectl --kubeconfig=$KUBECONFIG get job -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1 | cut -d'/' -f2) \
             -n $NAMESPACE || true
 
       - name: Get Job status
         id: job-status
         run: |
-          JOB=$(kubectl get job -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1)
-          STATUS=$(kubectl get $JOB -n $NAMESPACE -o jsonpath='{.status.succeeded}')
+          JOB=$(kubectl --kubeconfig=$KUBECONFIG get job -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1)
+          STATUS=$(kubectl --kubeconfig=$KUBECONFIG get $JOB -n $NAMESPACE -o jsonpath='{.status.succeeded}')
           
           if [ "$STATUS" = "1" ]; then
             echo "result=success" >> $GITHUB_OUTPUT
@@ -100,14 +117,16 @@ jobs:
       - name: Collect test logs
         if: always()
         run: |
-          POD=$(kubectl get pods -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1)
+          POD=$(kubectl --kubeconfig=$KUBECONFIG get pods -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1)
           echo "=== Test Runner Logs ==="
-          kubectl logs $POD -n $NAMESPACE || true
+          kubectl --kubeconfig=$KUBECONFIG logs $POD -n $NAMESPACE || true
 
       - name: Cleanup Job
         if: always()
         run: |
-          helm uninstall "$JOB_NAME" --namespace $NAMESPACE || true
+          echo "Cleaning up Job: $JOB_NAME"
+          helm uninstall "$JOB_NAME" --kubeconfig=$KUBECONFIG --namespace $NAMESPACE || true
+          echo "✅ Cleanup complete"
 
       - name: Fail workflow if tests failed
         if: steps.job-status.outputs.result == 'failure'
