@@ -96,22 +96,51 @@ jobs:
       - name: Wait for Job completion
         run: |
           echo "Waiting for Job $JOB_NAME to complete..."
-          kubectl --kubeconfig=$KUBECONFIG wait --for=condition=complete --timeout=10m \
-            job/$(kubectl --kubeconfig=$KUBECONFIG get job -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1 | cut -d'/' -f2) \
-            -n $NAMESPACE || true
+          
+          # Get the job name
+          JOB_FULL_NAME=$(kubectl --kubeconfig=$KUBECONFIG get job -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1 | cut -d'/' -f2)
+          
+          echo "Job: $JOB_FULL_NAME"
+          
+          # Wait for either complete or failed condition (max 10 minutes)
+          for i in {1..120}; do
+            STATUS=$(kubectl --kubeconfig=$KUBECONFIG get job/$JOB_FULL_NAME -n $NAMESPACE -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}' 2>/dev/null || echo "")
+            FAILED=$(kubectl --kubeconfig=$KUBECONFIG get job/$JOB_FULL_NAME -n $NAMESPACE -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}' 2>/dev/null || echo "")
+            
+            if [ "$STATUS" = "True" ]; then
+              echo "✅ Job completed successfully"
+              break
+            elif [ "$FAILED" = "True" ]; then
+              echo "❌ Job failed"
+              break
+            fi
+            
+            echo "Still running... ($i/120)"
+            sleep 5
+          done
 
       - name: Get Job status
         id: job-status
+        if: always()
         run: |
           JOB=$(kubectl --kubeconfig=$KUBECONFIG get job -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1)
-          STATUS=$(kubectl --kubeconfig=$KUBECONFIG get $JOB -n $NAMESPACE -o jsonpath='{.status.succeeded}')
           
-          if [ "$STATUS" = "1" ]; then
+          SUCCEEDED=$(kubectl --kubeconfig=$KUBECONFIG get $JOB -n $NAMESPACE -o jsonpath='{.status.succeeded}' 2>/dev/null || echo "0")
+          FAILED=$(kubectl --kubeconfig=$KUBECONFIG get $JOB -n $NAMESPACE -o jsonpath='{.status.failed}' 2>/dev/null || echo "0")
+          
+          echo "Job Status:"
+          echo "  Succeeded: $SUCCEEDED"
+          echo "  Failed: $FAILED"
+          
+          if [ "$SUCCEEDED" = "1" ]; then
             echo "result=success" >> $GITHUB_OUTPUT
             echo "✅ Tests passed"
-          else
+          elif [ "$FAILED" = "1" ]; then
             echo "result=failure" >> $GITHUB_OUTPUT
             echo "❌ Tests failed"
+          else
+            echo "result=unknown" >> $GITHUB_OUTPUT
+            echo "⚠️  Job status unknown"
           fi
 
       - name: Collect test logs
@@ -129,5 +158,7 @@ jobs:
           echo "✅ Cleanup complete"
 
       - name: Fail workflow if tests failed
-        if: steps.job-status.outputs.result == 'failure'
-        run: exit 1
+        if: steps.job-status.outputs.result == 'failure' || steps.job-status.outputs.result == 'unknown'
+        run: |
+          echo "❌ Workflow failed due to test results: ${{ steps.job-status.outputs.result }}"
+          exit 1
