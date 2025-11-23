@@ -194,7 +194,7 @@ jobs:
           docker compose \
             -f "$TEMP_COMPOSE" \
             -f "${{ steps.compose-gen.outputs.compose-override }}" \
-            logs --tail=200 access audit catalog customers inventory orders pricing sales-dashboard sites || true
+            logs --tail=200 gateway access audit catalog customers inventory orders pricing sales-dashboard sites || true
           echo ""
           echo "=== Checking environment variables ==="
           docker compose \
