@@ -48,6 +48,7 @@ services:
     image: shopifake-gateway:test-local
     environment:
       <<: *spring-prod
+      BETTER_AUTH_SECRET: false-secret-key-for-development-only-min-32-chars
       SERVICES_ACCESS_URL: http://access:8080
       SERVICES_AUDIT_URL: http://audit:8080
       SERVICES_CATALOG_URL: http://catalog:8080
