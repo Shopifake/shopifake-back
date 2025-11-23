@@ -2,19 +2,113 @@ name: Staging Tests
 
 on:
   workflow_call:
+    inputs:
+      lock-path:
+        description: 'Relative path of the lock file'
+        required: true
+        type: string
 
 jobs:
-  deploy-test-job:
-    name: Deploy Test Job to Staging Cluster
+  test-runner:
+    name: Run System Tests in Staging
     runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 15
+    env:
+      KUBECONFIG: /tmp/kubeconfig
+      NAMESPACE: shopifake-staging
     
     steps:
-      - name: Deploy Kubernetes Job for tests
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup kubeconfig
+        env:
+          KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG }}
         run: |
-          # TODO: Deploy K8s Job with test-runner in staging cluster
-          # - Image: ghcr.io/shopifake/shopifake-test-runner:latest
-          # - Args: --mode staging --suite all --verbose
-          # - Env: BASE_URL=https://staging-api.shopifake.com, GITHUB_TOKEN
-          # - On success: pod creates promotion PR staging→main
-          # - On failure: pod sends email notification
-          echo "TODO: Implement K8s Job deployment"
+          echo "$KUBECONFIG_BASE64" | base64 -d > $KUBECONFIG
+          chmod 600 $KUBECONFIG
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+
+      - name: Install helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.15.0'
+
+      - name: Extract test-runner image from lock
+        id: image
+        run: |
+          IMAGE_REPO=$(jq -r '.services["shopifake-test-runner"].image.repository' ${{ inputs.lock-path }})
+          IMAGE_TAG=$(jq -r '.services["shopifake-test-runner"].image.tag' ${{ inputs.lock-path }})
+          echo "repository=$IMAGE_REPO" >> $GITHUB_OUTPUT
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Using test-runner image: $IMAGE_REPO:$IMAGE_TAG"
+
+      - name: Deploy test-runner Job
+        env:
+          GATEWAY_URL: ${{ secrets.STAGING_GATEWAY_URL }}
+          TEST_TIMEOUT: ${{ vars.TEST_TIMEOUT || '300' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          JOB_NAME="test-runner-$(date +%s)"
+          
+          helm upgrade --install "$JOB_NAME" infra/shopifake-test-runner/chart \
+            --namespace $NAMESPACE \
+            --set image.repository="${{ steps.image.outputs.repository }}" \
+            --set image.tag="${{ steps.image.outputs.tag }}" \
+            --set-string "env[0].name=BASE_URL" \
+            --set-string "env[0].value=$GATEWAY_URL" \
+            --set-string "env[1].name=TIMEOUT" \
+            --set-string "env[1].value=$TEST_TIMEOUT" \
+            --set-string "env[2].name=GITHUB_TOKEN" \
+            --set-string "env[2].value=$GITHUB_TOKEN" \
+            --set-string "env[3].name=GITHUB_SHA" \
+            --set-string "env[3].value=$GITHUB_SHA" \
+            --wait \
+            --timeout 10m
+          
+          echo "JOB_NAME=$JOB_NAME" >> $GITHUB_ENV
+
+      - name: Wait for Job completion
+        run: |
+          echo "Waiting for Job $JOB_NAME to complete..."
+          kubectl wait --for=condition=complete --timeout=10m \
+            job/$(kubectl get job -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1 | cut -d'/' -f2) \
+            -n $NAMESPACE || true
+
+      - name: Get Job status
+        id: job-status
+        run: |
+          JOB=$(kubectl get job -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1)
+          STATUS=$(kubectl get $JOB -n $NAMESPACE -o jsonpath='{.status.succeeded}')
+          
+          if [ "$STATUS" = "1" ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo "✅ Tests passed"
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "❌ Tests failed"
+          fi
+
+      - name: Collect test logs
+        if: always()
+        run: |
+          POD=$(kubectl get pods -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1)
+          echo "=== Test Runner Logs ==="
+          kubectl logs $POD -n $NAMESPACE || true
+
+      - name: Cleanup Job
+        if: always()
+        run: |
+          helm uninstall "$JOB_NAME" --namespace $NAMESPACE || true
+
+      - name: Fail workflow if tests failed
+        if: steps.job-status.outputs.result == 'failure'
+        run: exit 1
