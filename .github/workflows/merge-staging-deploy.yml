@@ -60,13 +60,75 @@ jobs:
           jq -r '.services | keys[]' ${{ inputs.lock-path }} > /tmp/services.txt
           echo "Services: $(cat /tmp/services.txt | tr '\n' ' ')"
 
+      - name: Deploy Python service dependencies
+        run: |
+          # Deploy Redis for Python services (used by recommender for queue)
+          if ! helm list -n $NAMESPACE | grep -q "^shopifake-redis"; then
+            echo "Deploying Redis for Python services"
+            helm install shopifake-redis bitnami/redis \
+              --version 24.0.0 \
+              --namespace $NAMESPACE \
+              --set auth.enabled=false \
+              --set master.persistence.size=1Gi \
+              --set replica.replicaCount=0 \
+              --wait \
+              --timeout 3m
+            echo "Redis deployed"
+          else
+            echo "Redis already exists, skipping"
+          fi
+          
+          # Deploy Qdrant for recommender service (vector database)
+          if ! kubectl get deployment shopifake-qdrant -n $NAMESPACE &>/dev/null; then
+            echo "Deploying Qdrant vector database"
+            
+            # Check if recommender service is in the lock file
+            if grep -q "shopifake-recommender" /tmp/services.txt; then
+              RECOMMENDER_PATH=$(jq -r '.services["shopifake-recommender"].submodule_path' ${{ inputs.lock-path }})
+              
+              if [ -f "$RECOMMENDER_PATH/chart/qdrant-deployment.yaml" ]; then
+                kubectl apply -f "$RECOMMENDER_PATH/chart/qdrant-deployment.yaml"
+                
+                # Wait for Qdrant to be ready
+                kubectl wait --for=condition=ready pod -l app=shopifake-qdrant \
+                  -n $NAMESPACE --timeout=120s || true
+                
+                echo "Qdrant deployed"
+              else
+                echo "Warning: Qdrant manifest not found at $RECOMMENDER_PATH/chart/qdrant-deployment.yaml"
+              fi
+            else
+              echo "Recommender service not in lock file, skipping Qdrant"
+            fi
+          else
+            echo "Qdrant already exists, skipping"
+          fi
+
       - name: Deploy databases
         env:
+          DB_PASSWORD_ACCESS: ${{ secrets.DB_PASSWORD_ACCESS }}
+          DB_PASSWORD_AUDIT: ${{ secrets.DB_PASSWORD_AUDIT }}
           DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
+          DB_PASSWORD_CUSTOMERS: ${{ secrets.DB_PASSWORD_CUSTOMERS }}
+          DB_PASSWORD_INVENTORY: ${{ secrets.DB_PASSWORD_INVENTORY }}
+          DB_PASSWORD_ORDERS: ${{ secrets.DB_PASSWORD_ORDERS }}
+          DB_PASSWORD_PRICING: ${{ secrets.DB_PASSWORD_PRICING }}
+          DB_PASSWORD_SALES_DASHBOARD: ${{ secrets.DB_PASSWORD_SALES_DASHBOARD }}
+          DB_PASSWORD_SITES: ${{ secrets.DB_PASSWORD_SITES }}
         run: |
           while read -r SERVICE_NAME; do
-            # TODO: Remove this once we have a way to deploy all databases
-            if [ "$SERVICE_NAME" != "shopifake-catalog" ]; then
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Only deploy databases for Java services in services/ directory
+            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/)"
+              continue
+            fi
+            
+            # Exclude Python services
+            if [[ "$SERVICE_NAME" == "shopifake-recommender" || "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (Python service)"
               continue
             fi
           
@@ -101,7 +163,18 @@ jobs:
           CORS_ALLOW_CREDENTIALS: ${{ secrets.CORS_ALLOW_CREDENTIALS }}
         run: |
           while read -r SERVICE_NAME; do
-            if [ "$SERVICE_NAME" != "shopifake-catalog" ]; then
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Only create configmaps for Java services in services/ directory
+            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/)"
+              continue
+            fi
+            
+            # Exclude Python services
+            if [[ "$SERVICE_NAME" == "shopifake-recommender" || "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (Python service)"
               continue
             fi
           
@@ -120,13 +193,77 @@ jobs:
             echo "ConfigMap ${SERVICE_NAME}-config applied"
           done < /tmp/services.txt
 
-      - name: Create secrets
-        env:
-          DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
+      - name: Create configmaps for Python services
         run: |
           while read -r SERVICE_NAME; do
-            # TODO: Remove this once we have a way to deploy all secrets
-            if [ "$SERVICE_NAME" != "shopifake-catalog" ]; then
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Only create configmaps for Python services in services/ directory
+            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
+              continue
+            fi
+            
+            # Only handle Python services
+            if [[ "$SERVICE_NAME" != "shopifake-recommender" && "$SERVICE_NAME" != "shopifake-chatbot" ]]; then
+              continue
+            fi
+            
+            echo "Creating ConfigMap for $SERVICE_NAME"
+            
+            if [[ "$SERVICE_NAME" == "shopifake-recommender" ]]; then
+              kubectl create configmap "${SERVICE_NAME}-config" \
+                --from-literal=ENVIRONMENT=production \
+                --from-literal=REDIS_URL=redis://shopifake-redis-master:6379/0 \
+                --from-literal=QDRANT_URL=http://shopifake-qdrant:6333 \
+                --from-literal=QDRANT_COLLECTION=products_embeddings \
+                --from-literal=EMBEDDINGS_STREAM_KEY=embeddings:jobs \
+                --from-literal=EMBEDDINGS_CONSUMER_GROUP=embeddings-workers \
+                --from-literal=DLQ_STREAM_KEY=embeddings:dlq \
+                --from-literal=BATCH_MAX_MESSAGES=32 \
+                --from-literal=BATCH_MAX_WAIT_MS=200 \
+                --from-literal=WORKER_CONCURRENCY=4 \
+                --namespace $NAMESPACE \
+                --dry-run=client -o yaml | kubectl apply -f -
+            elif [[ "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              # Chatbot configuration (placeholder for future implementation)
+              kubectl create configmap "${SERVICE_NAME}-config" \
+                --from-literal=ENVIRONMENT=production \
+                --namespace $NAMESPACE \
+                --dry-run=client -o yaml | kubectl apply -f -
+            fi
+            
+            echo "ConfigMap ${SERVICE_NAME}-config applied"
+          done < /tmp/services.txt
+
+      - name: Create secrets
+        env:
+          DB_PASSWORD_ACCESS: ${{ secrets.DB_PASSWORD_ACCESS }}
+          DB_PASSWORD_AUDIT: ${{ secrets.DB_PASSWORD_AUDIT }}
+          DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
+          DB_PASSWORD_CUSTOMERS: ${{ secrets.DB_PASSWORD_CUSTOMERS }}
+          DB_PASSWORD_INVENTORY: ${{ secrets.DB_PASSWORD_INVENTORY }}
+          DB_PASSWORD_ORDERS: ${{ secrets.DB_PASSWORD_ORDERS }}
+          DB_PASSWORD_PRICING: ${{ secrets.DB_PASSWORD_PRICING }}
+          DB_PASSWORD_SALES_DASHBOARD: ${{ secrets.DB_PASSWORD_SALES_DASHBOARD }}
+          DB_PASSWORD_SITES: ${{ secrets.DB_PASSWORD_SITES }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          OPENAI_EMBEDDING_MODEL: ${{ secrets.OPENAI_EMBEDDING_MODEL }}
+        run: |
+          while read -r SERVICE_NAME; do
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Only create secrets for Java services in services/ directory
+            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/)"
+              continue
+            fi
+            
+            # Exclude Python services
+            if [[ "$SERVICE_NAME" == "shopifake-recommender" || "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (Python service)"
               continue
             fi
           
@@ -142,14 +279,63 @@ jobs:
             echo "Secret ${SERVICE_NAME}-secret applied"
           done < /tmp/services.txt
 
+      - name: Create secrets for Python services
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          OPENAI_EMBEDDING_MODEL: ${{ secrets.OPENAI_EMBEDDING_MODEL }}
+        run: |
+          while read -r SERVICE_NAME; do
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Only create secrets for Python services in services/ directory
+            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
+              continue
+            fi
+            
+            # Only handle Python services
+            if [[ "$SERVICE_NAME" != "shopifake-recommender" && "$SERVICE_NAME" != "shopifake-chatbot" ]]; then
+              continue
+            fi
+            
+            echo "Creating Secret for $SERVICE_NAME"
+            
+            if [[ "$SERVICE_NAME" == "shopifake-recommender" ]]; then
+              kubectl create secret generic "${SERVICE_NAME}-secret" \
+                --from-literal=OPENAI_API_KEY="$OPENAI_API_KEY" \
+                --from-literal=OPENAI_MODEL="$OPENAI_MODEL" \
+                --from-literal=OPENAI_EMBEDDING_MODEL="$OPENAI_EMBEDDING_MODEL" \
+                --namespace $NAMESPACE \
+                --dry-run=client -o yaml | kubectl apply -f -
+            elif [[ "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              # Chatbot secrets (placeholder for future implementation)
+              kubectl create secret generic "${SERVICE_NAME}-secret" \
+                --from-literal=OPENAI_API_KEY="$OPENAI_API_KEY" \
+                --namespace $NAMESPACE \
+                --dry-run=client -o yaml | kubectl apply -f -
+            fi
+            
+            echo "Secret ${SERVICE_NAME}-secret applied"
+          done < /tmp/services.txt
+
       - name: Deploy services
         run: |
           while read -r SERVICE_NAME; do
-            # TODO: Remove this once we have a way to deploy all services
-            if [ "$SERVICE_NAME" != "shopifake-catalog" ]; then
-              echo "Skipping $SERVICE_NAME"
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Only deploy Java services in services/ directory
+            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/)"
               continue
-            fi 
+            fi
+            
+            # Exclude Python services
+            if [[ "$SERVICE_NAME" == "shopifake-recommender" || "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (Python service)"
+              continue
+            fi
           
             IMAGE_REPO=$(jq -r ".services[\"$SERVICE_NAME\"].image.repository" ${{ inputs.lock-path }})
             IMAGE_TAG=$(jq -r ".services[\"$SERVICE_NAME\"].image.tag" ${{ inputs.lock-path }})
@@ -175,6 +361,120 @@ jobs:
           
             echo "Service $SERVICE_NAME deployed"
           done < /tmp/services.txt
+
+      - name: Deploy Python services
+        run: |
+          while read -r SERVICE_NAME; do
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Only deploy Python services in services/ directory
+            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
+              continue
+            fi
+            
+            # Only handle Python services
+            if [[ "$SERVICE_NAME" != "shopifake-recommender" && "$SERVICE_NAME" != "shopifake-chatbot" ]]; then
+              continue
+            fi
+            
+            IMAGE_REPO=$(jq -r ".services[\"$SERVICE_NAME\"].image.repository" ${{ inputs.lock-path }})
+            IMAGE_TAG=$(jq -r ".services[\"$SERVICE_NAME\"].image.tag" ${{ inputs.lock-path }})
+            CHART_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            echo "Deploying Python service $SERVICE_NAME"
+            echo "  Image: $IMAGE_REPO:$IMAGE_TAG"
+            echo "  Chart: $CHART_PATH/chart"
+            
+            if [ ! -d "$CHART_PATH/chart" ]; then
+              echo "Error: Chart not found at $CHART_PATH/chart"
+              exit 1
+            fi
+            
+            helm upgrade --install "$SERVICE_NAME" "$CHART_PATH/chart" \
+              --namespace $NAMESPACE \
+              --set image.repository="$IMAGE_REPO" \
+              --set image.tag="$IMAGE_TAG" \
+              --set "envFrom[0].configMapRef.name=${SERVICE_NAME}-config" \
+              --set "envFrom[1].secretRef.name=${SERVICE_NAME}-secret" \
+              --wait \
+              --timeout 5m
+            
+            echo "Python service $SERVICE_NAME deployed"
+          done < /tmp/services.txt
+
+      - name: Create gateway configmap
+        env:
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
+          CORS_ALLOW_CREDENTIALS: ${{ secrets.CORS_ALLOW_CREDENTIALS }}
+        run: |
+          kubectl create configmap "shopifake-gateway-config" \
+            --from-literal=SPRING_PROFILES_ACTIVE=prod \
+            --from-literal=PORT=8080 \
+            --from-literal=CORS_ALLOWED_ORIGINS="$CORS_ALLOWED_ORIGINS" \
+            --from-literal=CORS_ALLOW_CREDENTIALS="$CORS_ALLOW_CREDENTIALS" \
+            --from-literal=SERVICE_ACCESS_URL=http://shopifake-access:8080 \
+            --from-literal=SERVICE_AUDIT_URL=http://shopifake-audit:8080 \
+            --from-literal=SERVICE_CATALOG_URL=http://shopifake-catalog:8080 \
+            --from-literal=SERVICE_CUSTOMERS_URL=http://shopifake-customers:8080 \
+            --from-literal=SERVICE_INVENTORY_URL=http://shopifake-inventory:8080 \
+            --from-literal=SERVICE_ORDERS_URL=http://shopifake-orders:8080 \
+            --from-literal=SERVICE_PRICING_URL=http://shopifake-pricing:8080 \
+            --from-literal=SERVICE_RECOMMENDER_URL=http://shopifake-recommender:8000 \
+            --from-literal=SERVICE_SALES_DASHBOARD_URL=http://shopifake-sales-dashboard:8080 \
+            --from-literal=SERVICE_SITES_URL=http://shopifake-sites:8080 \
+            --from-literal=SERVICE_CHATBOT_URL=http://shopifake-chatbot:8000 \
+            --from-literal=SERVICE_AUTH_B2C_URL=http://shopifake-auth-b2c:3000 \
+            --from-literal=SERVICE_AUTH_B2E_URL=http://shopifake-auth-b2e:3001 \
+            --namespace $NAMESPACE \
+            --dry-run=client -o yaml | kubectl apply -f -
+        
+          echo "ConfigMap shopifake-gateway-config applied"
+
+      - name: Create gateway secret
+        env:
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+        run: |
+          kubectl create secret generic "shopifake-gateway-secret" \
+            --from-literal=BETTER_AUTH_SECRET="$BETTER_AUTH_SECRET" \
+            --namespace $NAMESPACE \
+            --dry-run=client -o yaml | kubectl apply -f -
+        
+          echo "Secret shopifake-gateway-secret applied"
+
+      - name: Deploy gateway
+        run: |
+          SERVICE_NAME="shopifake-gateway"
+          
+          # Check if gateway exists in lock file
+          if ! jq -e ".services[\"$SERVICE_NAME\"]" ${{ inputs.lock-path }} > /dev/null; then
+            echo "Gateway not found in lock file, skipping"
+            exit 0
+          fi
+          
+          IMAGE_REPO=$(jq -r ".services[\"$SERVICE_NAME\"].image.repository" ${{ inputs.lock-path }})
+          IMAGE_TAG=$(jq -r ".services[\"$SERVICE_NAME\"].image.tag" ${{ inputs.lock-path }})
+          CHART_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+        
+          echo "Deploying $SERVICE_NAME"
+          echo "  Image: $IMAGE_REPO:$IMAGE_TAG"
+          echo "  Chart: $CHART_PATH/chart"
+        
+          if [ ! -d "$CHART_PATH/chart" ]; then
+            echo "Error: Chart not found at $CHART_PATH/chart"
+            exit 1
+          fi
+        
+          helm upgrade --install "$SERVICE_NAME" "$CHART_PATH/chart" \
+            --namespace $NAMESPACE \
+            --set image.repository="$IMAGE_REPO" \
+            --set image.tag="$IMAGE_TAG" \
+            --set "envFrom[0].configMapRef.name=${SERVICE_NAME}-config" \
+            --set "envFrom[1].secretRef.name=${SERVICE_NAME}-secret" \
+            --wait \
+            --timeout 5m
+        
+          echo "Gateway $SERVICE_NAME deployed"
 
       - name: Verify deployment
         if: always()

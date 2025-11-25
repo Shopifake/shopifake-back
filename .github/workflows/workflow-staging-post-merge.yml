@@ -34,5 +34,10 @@ jobs:
 
   tests_staging:
     name: Deploy Test Job to Staging
-    needs: deploy_staging
+    needs:
+      - prepare
+      - deploy_staging
     uses: ./.github/workflows/merge-staging-tests.yml
+    with:
+      lock-path: ${{ needs.prepare.outputs.lock-path }}
+    secrets: inherit

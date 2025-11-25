@@ -20,8 +20,9 @@ jobs:
         id: discover
         run: |
           set -euo pipefail
-          # TODO: Consider validating lock file format/content before using it
-          LOCK_FILE=$(find locks/ -maxdepth 1 -name 'lock-*.yml' 2>/dev/null | sort | tail -n 1 || true)
+          # Find lock file with latest timestamp in filename (format: lock-YYYYMMDD-HHMMSS.yml)
+          # Exclude lock-pr-* files and sort by embedded timestamp
+          LOCK_FILE=$(find locks/ -maxdepth 1 -name 'lock-[0-9]*-[0-9]*.yml' 2>/dev/null | sort -t- -k2,3 -r | head -n 1 || true)
           if [[ -z "$LOCK_FILE" ]]; then
             echo "No lock file found under locks/." >&2
             exit 1
