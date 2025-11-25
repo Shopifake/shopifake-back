@@ -1,0 +1,1 @@
+python scripts/seed_from_csv.py
