@@ -2,18 +2,24 @@
 """
 Seed the Shopifake stack by reading structured CSV data and calling service APIs.
 
-For every CSV row the script:
-1. Creates (or reuses) a site via the Sites service.
-2. Ensures categories and filters exist in the Catalog service.
-3. Creates products with filter assignments.
-4. Creates an initial price in the Pricing service.
-5. Initializes stock in the Inventory service.
+The seeding now happens in two phases:
+1. Sites: Creates (or reuses) sites defined in the sites CSV.
+2. Products: For every product CSV row the script
+   a. Ensures categories and filters exist in the Catalog service.
+   b. Creates products with filter assignments.
+   c. Creates an initial price in the Pricing service.
+   d. Initializes stock in the Inventory service.
 
 Usage:
-    python scripts/seed_from_csv.py --csv data/seed-data.csv
+    python scripts/seed_from_csv.py \
+        --sites-csv data/sites-seed-data.csv \
+        --products-csv data/products-seed-data.csv
 
 Environment variables / flags:
-    --csv / SEED_CSV_PATH            Path to the CSV file.
+    --sites-csv / SEED_SITES_CSV_PATH
+                                     Path to the sites CSV file.
+    --products-csv / SEED_PRODUCTS_CSV_PATH
+                                     Path to the products CSV file.
     --gateway-base-url / GATEWAY_BASE_URL
                                      Gateway URL that proxies every service.
     --owner-id / DEFAULT_OWNER_ID    UUID used for the X-Owner-Id header.
@@ -44,10 +50,16 @@ LOGGER = logging.getLogger("seed")
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Seed Shopifake services from CSV.")
     parser.add_argument(
-        "--csv",
-        dest="csv_path",
-        default=os.getenv("SEED_CSV_PATH", "data/seed-data.csv"),
-        help="Path to the CSV data file.",
+        "--sites-csv",
+        dest="sites_csv_path",
+        default=os.getenv("SEED_SITES_CSV_PATH", "data/sites-seed-data.csv"),
+        help="Path to the sites CSV data file.",
+    )
+    parser.add_argument(
+        "--products-csv",
+        dest="products_csv_path",
+        default=os.getenv("SEED_PRODUCTS_CSV_PATH", "data/products-seed-data.csv"),
+        help="Path to the products CSV data file.",
     )
     parser.add_argument(
         "--gateway-base-url",
@@ -69,22 +81,53 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_rows(csv_path: Path) -> List[Dict[str, Any]]:
+def load_site_rows(csv_path: Path) -> List[Dict[str, Any]]:
     if not csv_path.exists():
-        raise FileNotFoundError(f"CSV file not found: {csv_path}")
+        raise FileNotFoundError(f"Sites CSV file not found: {csv_path}")
 
     with csv_path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         rows = []
         for index, raw in enumerate(reader, start=2):
             try:
-                rows.append(_normalize_row(raw))
+                rows.append(_normalize_site_row(raw))
             except Exception as exc:  # pragma: no cover - defensive logging
-                raise ValueError(f"Failed to parse CSV row {index}: {exc}") from exc
+                raise ValueError(f"Failed to parse sites CSV row {index}: {exc}") from exc
     return rows
 
 
-def _normalize_row(raw: Dict[str, str]) -> Dict[str, Any]:
+def load_product_rows(csv_path: Path) -> List[Dict[str, Any]]:
+    if not csv_path.exists():
+        raise FileNotFoundError(f"Products CSV file not found: {csv_path}")
+
+    with csv_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        rows = []
+        for index, raw in enumerate(reader, start=2):
+            try:
+                rows.append(_normalize_product_row(raw))
+            except Exception as exc:  # pragma: no cover - defensive logging
+                raise ValueError(f"Failed to parse products CSV row {index}: {exc}") from exc
+    return rows
+
+
+def _normalize_site_row(raw: Dict[str, str]) -> Dict[str, Any]:
+    normalized = {
+        "site_key": (raw.get("site_key") or "").strip(),
+        "site_name": (raw.get("site_name") or "").strip(),
+        "site_slug": (raw.get("site_slug") or "").strip(),
+        "site_description": (raw.get("site_description") or "").strip(),
+        "site_currency": (raw.get("site_currency") or "").strip(),
+        "site_language": (raw.get("site_language") or "").strip(),
+        "site_config": (raw.get("site_config") or "").strip(),
+    }
+    missing = [key for key, value in normalized.items() if not value]
+    if missing:
+        raise ValueError(f"Missing required site fields: {', '.join(missing)}")
+    return normalized
+
+
+def _normalize_product_row(raw: Dict[str, str]) -> Dict[str, Any]:
     def parse_json_field(field_name: str) -> Any:
         value = (raw.get(field_name) or "").strip()
         return json.loads(value) if value else None
@@ -109,12 +152,6 @@ def _normalize_row(raw: Dict[str, str]) -> Dict[str, Any]:
 
     normalized = {
         "site_key": (raw.get("site_key") or "").strip(),
-        "site_name": (raw.get("site_name") or "").strip(),
-        "site_slug": (raw.get("site_slug") or "").strip(),
-        "site_description": (raw.get("site_description") or "").strip(),
-        "site_currency": (raw.get("site_currency") or "").strip(),
-        "site_language": (raw.get("site_language") or "").strip(),
-        "site_config": (raw.get("site_config") or "").strip(),
         "category_name": (raw.get("category_name") or "").strip(),
         "filter_definitions": filters_payload,
         "product_name": (raw.get("product_name") or "").strip(),
@@ -272,12 +309,24 @@ class Seeder:
             path = f"/{path}"
         return f"{self.base_url}{path}"
 
-    def process_rows(self, rows: Iterable[Dict[str, Any]]) -> None:
+    def process_sites(self, rows: Iterable[Dict[str, Any]]) -> None:
         for row in rows:
-            site = self._ensure_site(row)
+            self._ensure_site(row)
+
+    def process_products(self, rows: Iterable[Dict[str, Any]]) -> None:
+        for row in rows:
+            site = self.site_cache.get(row["site_key"])
+            if not site:
+                raise RuntimeError(
+                    f"Unknown site_key '{row['site_key']}' in products CSV. "
+                    "Ensure the site is listed in the sites CSV or seeded beforehand."
+                )
             category = self._ensure_category(site["id"], row["category_name"], row["filter_definitions"])
             filter_assignments = self._ensure_filters_and_map_assignments(site["id"], category["id"], row)
             product_id = self._create_product(site["id"], category["id"], row, filter_assignments)
+            if not product_id:
+                LOGGER.info("Skipping price/inventory because product %s already exists", row["product_sku"])
+                continue
             self._create_price(product_id, row)
             self._create_inventory(product_id, row)
 
@@ -324,7 +373,12 @@ class Seeder:
 
         if not site:
             raise RuntimeError(f"Unable to ensure site '{row['site_name']}'")
+
         self.site_cache[cache_key] = site
+        if row["site_key"]:
+            self.site_cache[row["site_key"]] = site
+        if row["site_slug"]:
+            self.site_cache[row["site_slug"]] = site
         return site
 
     def _fetch_site_by_slug(self, slug: str) -> Optional[Dict[str, Any]]:
@@ -480,7 +534,7 @@ class Seeder:
         category_id: uuid.UUID | str,
         row: Dict[str, Any],
         filter_assignments: List[Dict[str, Any]],
-    ) -> str:
+    ) -> Optional[str]:
         payload = {
             "siteId": str(site_id),
             "name": row["product_name"],
@@ -497,14 +551,21 @@ class Seeder:
         if self.dry_run:
             LOGGER.debug("DRY RUN product payload=%s", payload)
             return f"dry-product-{row['product_sku']}"
-        response = self.http.post(
-            self._url("/api/catalog/products"),
-            json_body=payload,
-            timeout=30,
-        )
-        product_id = response.json().get("id")
-        LOGGER.info("Created product %s", product_id)
-        return str(product_id)
+        try:
+            response = self.http.post(
+                self._url("/api/catalog/products"),
+                json_body=payload,
+                timeout=30,
+            )
+            product_id = response.json().get("id")
+            LOGGER.info("Created product %s", product_id)
+            return str(product_id)
+        except HttpError as err:
+            body_lower = err.body.lower()
+            if err.status == 400 and "sku already exists" in body_lower:
+                LOGGER.warning("Product with SKU %s already exists, skipping creation", row["product_sku"])
+                return None
+            raise
 
     # --- Pricing ---------------------------------------------------------------
     def _create_price(self, product_id: str, row: Dict[str, Any]) -> None:
@@ -562,16 +623,20 @@ def main() -> None:
     except ValueError as exc:
         raise SystemExit(f"Invalid owner UUID: {args.owner_id}") from exc
 
-    csv_path = Path(args.csv_path)
-    rows = load_rows(csv_path)
-    LOGGER.info("Loaded %d rows from %s", len(rows), csv_path)
+    sites_csv_path = Path(args.sites_csv_path)
+    products_csv_path = Path(args.products_csv_path)
+    site_rows = load_site_rows(sites_csv_path)
+    product_rows = load_product_rows(products_csv_path)
+    LOGGER.info("Loaded %d site rows from %s", len(site_rows), sites_csv_path)
+    LOGGER.info("Loaded %d product rows from %s", len(product_rows), products_csv_path)
 
     seeder = Seeder(
         gateway_base_url=args.gateway_base_url,
         owner_id=owner_id,
         dry_run=args.dry_run,
     )
-    seeder.process_rows(rows)
+    seeder.process_sites(site_rows)
+    seeder.process_products(product_rows)
 
 
 if __name__ == "__main__":
