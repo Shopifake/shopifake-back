@@ -115,14 +115,16 @@ jobs:
           DB_PASSWORD_PRICING: ${{ secrets.DB_PASSWORD_PRICING }}
           DB_PASSWORD_SALES_DASHBOARD: ${{ secrets.DB_PASSWORD_SALES_DASHBOARD }}
           DB_PASSWORD_SITES: ${{ secrets.DB_PASSWORD_SITES }}
+          DB_PASSWORD_AUTH_B2C: ${{ secrets.DB_PASSWORD_AUTH_B2C }}
+          DB_PASSWORD_AUTH_B2E: ${{ secrets.DB_PASSWORD_AUTH_B2E }}
         run: |
           while read -r SERVICE_NAME; do
             # Get submodule path to filter services
             SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
             
-            # Only deploy databases for Java services in services/ directory
-            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
-              echo "Skipping $SERVICE_NAME (not in services/)"
+            # Only deploy databases for Java services in services/ directory and Node.js auth services in infra/
+            if [[ ! "$SUBMODULE_PATH" == services/* ]] && [[ ! "$SUBMODULE_PATH" == infra/shopifake-auth-* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/ or auth service)"
               continue
             fi
             
@@ -171,6 +173,8 @@ jobs:
           SHOPIFAKE_SITES_CONFIGMAP: ${{ vars.SHOPIFAKE_SITES_CONFIGMAP }}
           SHOPIFAKE_RECOMMENDER_CONFIGMAP: ${{ vars.SHOPIFAKE_RECOMMENDER_CONFIGMAP }}
           SHOPIFAKE_CHATBOT_CONFIGMAP: ${{ vars.SHOPIFAKE_CHATBOT_CONFIGMAP }}
+          SHOPIFAKE_AUTH_B2C_CONFIGMAP: ${{ vars.SHOPIFAKE_AUTH_B2C_CONFIGMAP }}
+          SHOPIFAKE_AUTH_B2E_CONFIGMAP: ${{ vars.SHOPIFAKE_AUTH_B2E_CONFIGMAP }}
           # Secrets
           SHOPIFAKE_ACCESS_SECRETS: ${{ secrets.SHOPIFAKE_ACCESS_SECRETS }}
           SHOPIFAKE_AUDIT_SECRETS: ${{ secrets.SHOPIFAKE_AUDIT_SECRETS }}
@@ -183,25 +187,16 @@ jobs:
           SHOPIFAKE_SITES_SECRETS: ${{ secrets.SHOPIFAKE_SITES_SECRETS }}
           SHOPIFAKE_RECOMMENDER_SECRETS: ${{ secrets.SHOPIFAKE_RECOMMENDER_SECRETS }}
           SHOPIFAKE_CHATBOT_SECRETS: ${{ secrets.SHOPIFAKE_CHATBOT_SECRETS }}
-          # TODO: Add auth services when ready
-          # SHOPIFAKE_AUTH_B2C_CONFIGMAP: ${{ vars.SHOPIFAKE_AUTH_B2C_CONFIGMAP }}
-          # SHOPIFAKE_AUTH_B2C_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2C_SECRETS }}
-          # SHOPIFAKE_AUTH_B2E_CONFIGMAP: ${{ vars.SHOPIFAKE_AUTH_B2E_CONFIGMAP }}
-          # SHOPIFAKE_AUTH_B2E_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2E_SECRETS }}
+          SHOPIFAKE_AUTH_B2C_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2C_SECRETS }}
+          SHOPIFAKE_AUTH_B2E_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2E_SECRETS }}
         run: |
           while read -r SERVICE_NAME; do
             # Get submodule path to filter services
             SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
             
-            # Only handle services in services/ directory (skip gateway)
-            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
-              echo "Skipping $SERVICE_NAME (not in services/)"
-              continue
-            fi
-            
-            # TODO: Skip auth services for now (will be handled later)
-            if [[ "$SERVICE_NAME" == "shopifake-auth-b2c" || "$SERVICE_NAME" == "shopifake-auth-b2e" ]]; then
-              echo "Skipping $SERVICE_NAME (auth service - TODO: implement later)"
+            # Handle services in services/ directory and auth services in infra/
+            if [[ ! "$SUBMODULE_PATH" == services/* ]] && [[ ! "$SUBMODULE_PATH" == infra/shopifake-auth-* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/ or auth service)"
               continue
             fi
             
@@ -254,9 +249,9 @@ jobs:
             # Get submodule path to filter services
             SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
             
-            # Only deploy services in services/ directory (skip gateway/auth)
-            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
-              echo "Skipping $SERVICE_NAME (not in services/)"
+            # Deploy services in services/ directory and auth services in infra/
+            if [[ ! "$SUBMODULE_PATH" == services/* ]] && [[ ! "$SUBMODULE_PATH" == infra/shopifake-auth-* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/ or auth service)"
               continue
             fi
           
