@@ -278,7 +278,8 @@ jobs:
               --set image.repository="$IMAGE_REPO" \
               --set image.tag="$IMAGE_TAG" \
               --set "envFrom[0].configMapRef.name=${SERVICE_NAME}-config" \
-              --set "envFrom[1].secretRef.name=${SERVICE_NAME}-secret"
+              --set "envFrom[1].secretRef.name=${SERVICE_NAME}-secret" \
+              --set "podAnnotations.configmap-updated=$(date +%s)"
           
             echo "Service $SERVICE_NAME deployed (waiting for health check)"
           done < /tmp/services.txt
@@ -350,7 +351,8 @@ jobs:
             --set image.repository="$IMAGE_REPO" \
             --set image.tag="$IMAGE_TAG" \
             --set "envFrom[0].configMapRef.name=${SERVICE_NAME}-config" \
-            --set "envFrom[1].secretRef.name=${SERVICE_NAME}-secret"
+            --set "envFrom[1].secretRef.name=${SERVICE_NAME}-secret" \
+            --set "podAnnotations.configmap-updated=$(date +%s)"
         
           echo "Gateway $SERVICE_NAME deployed (waiting for health check)"
 
