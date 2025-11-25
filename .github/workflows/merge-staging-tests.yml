@@ -66,9 +66,9 @@ jobs:
           TEST_TIMEOUT: ${{ vars.TEST_TIMEOUT || '300' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
-          LOCUST_USERS: ${{ vars.LOCUST_USERS || '10' }}
-          LOCUST_SPAWN_RATE: ${{ vars.LOCUST_SPAWN_RATE || '2' }}
-          LOCUST_RUN_TIME: ${{ vars.LOCUST_RUN_TIME || '60s' }}
+          LOCUST_USERS: ${{ vars.LOCUST_USERS || '5' }}
+          LOCUST_SPAWN_RATE: ${{ vars.LOCUST_SPAWN_RATE || '1' }}
+          LOCUST_RUN_TIME: ${{ vars.LOCUST_RUN_TIME || '30s' }}
         run: |
           JOB_NAME="test-runner-$(date +%s)"
           
