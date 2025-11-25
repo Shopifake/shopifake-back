@@ -66,6 +66,9 @@ jobs:
           TEST_TIMEOUT: ${{ vars.TEST_TIMEOUT || '300' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
+          LOCUST_USERS: ${{ vars.LOCUST_USERS || '10' }}
+          LOCUST_SPAWN_RATE: ${{ vars.LOCUST_SPAWN_RATE || '2' }}
+          LOCUST_RUN_TIME: ${{ vars.LOCUST_RUN_TIME || '60s' }}
         run: |
           JOB_NAME="test-runner-$(date +%s)"
           
@@ -73,12 +76,18 @@ jobs:
           echo "  Image: ${{ steps.image.outputs.repository }}:${{ steps.image.outputs.tag }}"
           echo "  Gateway URL: $GATEWAY_URL"
           echo "  Timeout: $TEST_TIMEOUT"
+          echo "  Test Suite: ALL (system + load + chaos)"
           
           helm upgrade --install "$JOB_NAME" infra/shopifake-test-runner/chart \
             --kubeconfig=$KUBECONFIG \
             --namespace $NAMESPACE \
             --set image.repository="${{ steps.image.outputs.repository }}" \
             --set image.tag="${{ steps.image.outputs.tag }}" \
+            --set-string "args[0]=--mode" \
+            --set-string "args[1]=staging" \
+            --set-string "args[2]=--suite" \
+            --set-string "args[3]=all" \
+            --set-string "args[4]=--verbose" \
             --set-string "env[0].name=BASE_URL" \
             --set-string "env[0].value=$GATEWAY_URL" \
             --set-string "env[1].name=TIMEOUT" \
@@ -87,6 +96,14 @@ jobs:
             --set-string "env[2].value=$GITHUB_TOKEN" \
             --set-string "env[3].name=GITHUB_SHA" \
             --set-string "env[3].value=$GITHUB_SHA" \
+            --set-string "env[4].name=K8S_NAMESPACE" \
+            --set-string "env[4].value=$NAMESPACE" \
+            --set-string "env[5].name=LOCUST_USERS" \
+            --set-string "env[5].value=$LOCUST_USERS" \
+            --set-string "env[6].name=LOCUST_SPAWN_RATE" \
+            --set-string "env[6].value=$LOCUST_SPAWN_RATE" \
+            --set-string "env[7].name=LOCUST_RUN_TIME" \
+            --set-string "env[7].value=$LOCUST_RUN_TIME" \
             --wait \
             --timeout 10m
           
