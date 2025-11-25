@@ -1,0 +1,33 @@
+meta {
+  name: Embeddings Enqueue
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/v1/embeddings
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "items": [
+      {
+        "product_id": "prod1",
+        "shop_id": "site1",
+        "embed_text": "Apple iPhone 14 Latest Apple smartphone with A15 chip, 6.1-inch display, and advanced camera system.",
+        "metadata": {"name": "Apple iPhone 14"}
+      }
+    ]
+  }
+}
+
+docs {
+  # Embeddings Enqueue
+  Enqueues embedding jobs for processing.
+}
