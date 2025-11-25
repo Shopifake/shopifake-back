@@ -1,0 +1,27 @@
+meta {
+  name: RAG Search
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/v1/rag/search
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "query": "What is the best phone?",
+    "top_k": 5
+  }
+}
+
+docs {
+  # RAG Search
+  Submits a queued RAG search request.
+}

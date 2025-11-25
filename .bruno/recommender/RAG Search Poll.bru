@@ -1,0 +1,20 @@
+meta {
+  name: RAG Search Poll
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/v1/rag/search/{{requestId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  # RAG Search Poll
+  Polls the status/results of a queued RAG search by requestId.
+}
