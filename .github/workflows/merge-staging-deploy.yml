@@ -273,13 +273,16 @@ jobs:
               exit 1
             fi
           
+            # Get ConfigMap hash to force restart when config changes
+            CONFIGMAP_HASH=$(kubectl get configmap "${SERVICE_NAME}-config" -n $NAMESPACE -o json 2>/dev/null | sha256sum | awk '{print $1}' || echo "")
+            
             helm upgrade --install "$SERVICE_NAME" "$CHART_PATH/chart" \
               --namespace $NAMESPACE \
               --set image.repository="$IMAGE_REPO" \
               --set image.tag="$IMAGE_TAG" \
               --set "envFrom[0].configMapRef.name=${SERVICE_NAME}-config" \
               --set "envFrom[1].secretRef.name=${SERVICE_NAME}-secret" \
-              --set "podAnnotations.configmap-updated=$(date +%s)"
+              --set "podAnnotations.configmap-hash=${CONFIGMAP_HASH}"
           
             echo "Service $SERVICE_NAME deployed (waiting for health check)"
           done < /tmp/services.txt
@@ -346,13 +349,16 @@ jobs:
             exit 1
           fi
         
+          # Get ConfigMap hash to force restart when config changes
+          CONFIGMAP_HASH=$(kubectl get configmap "${SERVICE_NAME}-config" -n $NAMESPACE -o json 2>/dev/null | sha256sum | awk '{print $1}' || echo "")
+          
           helm upgrade --install "$SERVICE_NAME" "$CHART_PATH/chart" \
             --namespace $NAMESPACE \
             --set image.repository="$IMAGE_REPO" \
             --set image.tag="$IMAGE_TAG" \
             --set "envFrom[0].configMapRef.name=${SERVICE_NAME}-config" \
             --set "envFrom[1].secretRef.name=${SERVICE_NAME}-secret" \
-            --set "podAnnotations.configmap-updated=$(date +%s)"
+            --set "podAnnotations.configmap-hash=${CONFIGMAP_HASH}"
         
           echo "Gateway $SERVICE_NAME deployed (waiting for health check)"
 
