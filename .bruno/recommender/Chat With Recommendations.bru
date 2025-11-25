@@ -1,0 +1,65 @@
+meta {
+  name: Chat - With Recommendations
+  type: http
+  seq: 22
+}
+
+post {
+  url: {{baseUrl}}/chat
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "site_id": "site-001",
+    "history": [
+      {
+        "role": "user",
+        "content": "I need a present"
+      },
+      {
+        "role": "rag",
+        "content": {
+          "reply": "Could you tell me who the present is for? What does this person like?",
+          "recommendations": []
+        }
+      },
+      {
+        "role": "user",
+        "content": "It's for my brother, he likes music."
+      },
+      {
+        "role": "rag",
+        "content": {
+          "reply": "Here are some product suggestions:",
+          "recommendations": [
+            {
+              "product_id": "prod-001",
+              "name": "Wireless Headphones Pro"
+            },
+            {
+              "product_id": "prod-002",
+              "name": "Studio Wireless"
+            }
+          ]
+        }
+      }
+    ],
+    "query": "Show me more options."
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("requestId", res.body.request_id)
+}
+
+docs {
+  # Chat - With Recommendations
+  Example showing a prior RAG turn that returned concrete products (only `product_id`
+  and `name`). The follow-up query asks for additional options.
+}
