@@ -1,0 +1,20 @@
+meta {
+  name: Embeddings Pending
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/v1/embeddings/pending
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  # Embeddings Pending
+  Shows pending messages for the embeddings consumer group.
+}

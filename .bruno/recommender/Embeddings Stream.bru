@@ -1,0 +1,20 @@
+meta {
+  name: Embeddings Stream
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/v1/embeddings/stream
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  # Embeddings Stream
+  Lists recent entries from the embeddings stream.
+}
