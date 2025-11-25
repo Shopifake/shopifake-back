@@ -48,6 +48,7 @@ services:
     image: shopifake-gateway:test-local
     environment:
       <<: *spring-prod
+      BETTER_AUTH_SECRET: false-secret-key-for-development-only-min-32-chars
       SERVICES_ACCESS_URL: http://access:8080
       SERVICES_AUDIT_URL: http://audit:8080
       SERVICES_CATALOG_URL: http://catalog:8080
@@ -95,7 +96,7 @@ services:
       auth-b2e:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -112,7 +113,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -129,7 +130,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -146,7 +147,7 @@ services:
         condition: service_healthy
     command: ["/app/application"]  
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -163,7 +164,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -180,7 +181,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -197,7 +198,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -214,7 +215,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -231,7 +232,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -248,7 +249,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10

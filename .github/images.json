@@ -45,7 +45,7 @@
   },
   "shopifake-gateway": {
     "repository": "ghcr.io/shopifake/shopifake-gateway",
-    "tag_prefix": "main-"
+    "tag_prefix": "main-native-"
   },
   "shopifake-bus": {
     "repository": "ghcr.io/shopifake/shopifake-bus",
