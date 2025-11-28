@@ -85,9 +85,7 @@ jobs:
             --set image.tag="${{ steps.image.outputs.tag }}" \
             --set-string "args[0]=--mode" \
             --set-string "args[1]=staging" \
-            --set-string "args[2]=--suite" \
-            --set-string "args[3]=all" \
-            --set-string "args[4]=--verbose" \
+            --set-string "args[2]=--verbose" \
             --set-string "env[0].name=BASE_URL" \
             --set-string "env[0].value=$GATEWAY_URL" \
             --set-string "env[1].name=TIMEOUT" \
