@@ -104,6 +104,8 @@ jobs:
             --set-string "env[6].value=$LOCUST_SPAWN_RATE" \
             --set-string "env[7].name=LOCUST_RUN_TIME" \
             --set-string "env[7].value=$LOCUST_RUN_TIME" \
+            --set-string "env[8].name=POST_RESULTS_TO_GITHUB" \
+            --set-string "env[8].value=false" \
             --wait \
             --timeout 10m
           
