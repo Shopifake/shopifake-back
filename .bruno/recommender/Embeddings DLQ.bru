@@ -1,0 +1,20 @@
+meta {
+  name: Embeddings DLQ
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/v1/embeddings/dlq
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  # Embeddings DLQ
+  Reads recent dead-letter queue entries.
+}

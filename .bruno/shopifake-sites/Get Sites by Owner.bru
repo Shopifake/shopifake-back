@@ -1,0 +1,31 @@
+meta {
+  name: Get Sites by Owner
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/sites?ownerId={{ownerId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+
+docs {
+  # Get Sites by Owner
+  
+  Retrieves all sites owned by a specific owner.
+  
+  If `ownerId` is not provided, defaults to `00000000-0000-0000-0000-000000000001`.
+  
+  ## Response Format
+  Returns a list of sites with:
+  - `currency`: Enum value (USD, EUR, GBP, JPY, CAD, AUD, CHF, CNY)
+  - `language`: Enum value (EN, FR, DE, ES, IT, PT, NL, JA, ZH)
+  - `status`: Enum value (DRAFT, ACTIVE, PENDING, SUSPENDED, ARCHIVED, DISABLED, DELETED)
+}
+

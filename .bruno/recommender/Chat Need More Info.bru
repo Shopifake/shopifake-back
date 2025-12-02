@@ -1,0 +1,45 @@
+meta {
+  name: Chat - Need More Info
+  type: http
+  seq: 21
+}
+
+post {
+  url: {{baseUrl}}/chat
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "site_id": "site-001",
+    "history": [
+      {
+        "role": "user",
+        "content": "I need a present"
+      },
+      {
+        "role": "rag",
+        "content": {
+          "reply": "Could you tell me who the present is for? What does this person like?",
+          "recommendations": []
+        }
+      }
+    ],
+    "query": "It's for my brother, he likes music."
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("requestId", res.body.request_id)
+}
+
+docs {
+  # Chat - Need More Info
+  Demonstrates the decoder asking the shopper for clarification. The RAG role uses
+  `content.reply` and `content.recommendations` (empty when more detail is required).
+}

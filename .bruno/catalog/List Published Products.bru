@@ -1,0 +1,21 @@
+meta {
+  name: List Published Products
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/catalog/products/public?siteId={{siteId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  # List Published Products
+  
+  Storefront-friendly endpoint that only returns `PUBLISHED` items (optionally filtered by site).
+}

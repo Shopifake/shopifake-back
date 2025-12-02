@@ -1,0 +1,29 @@
+meta {
+  name: Adjust Inventory
+  type: http
+  seq: 23
+}
+
+patch {
+  url: {{baseUrl}}/api/inventory/{{productId}}/adjust
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "quantityDelta": -1,
+    "reason": "Manual stock correction"
+  }
+}
+
+docs {
+  # Adjust Inventory
+
+  Applies a positive or negative adjustment to the available quantity. Non-zero deltas only.
+}
+

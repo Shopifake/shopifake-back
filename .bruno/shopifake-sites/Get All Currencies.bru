@@ -1,0 +1,26 @@
+meta {
+  name: Get All Currencies
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/sites/currencies
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+docs {
+  # Get All Currencies
+  
+  Retrieves all supported currency codes.
+  
+  ## Response Format
+  Returns:
+  - `currencies`: Array of supported currency codes (USD, EUR, GBP, JPY, CAD, AUD, CHF, CNY)
+  - `count`: Number of supported currencies
+}

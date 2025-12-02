@@ -1,0 +1,30 @@
+meta {
+  name: Suggest Alternative Slug
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/sites/suggest-slug?slug=test-site
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+docs {
+  # Suggest Alternative Slug
+  
+  Suggests an alternative slug if the requested slug is already taken.
+  
+  ## Query Parameters
+  - `slug`: The requested slug to check
+  
+  ## Response Format
+  Returns:
+  - `originalSlug`: The normalized original slug
+  - `suggestedSlug`: An available alternative slug
+  - `message`: A descriptive message about the suggestion
+}

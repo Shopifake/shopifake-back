@@ -1,0 +1,326 @@
+x-default-env: &spring-prod
+  # Spring Boot datasource configuration
+  # Provide both placeholder variables AND Spring Boot env var for maximum compatibility
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_USERNAME: shopifake
+  DB_PASSWORD: shopifake_pass
+  # DB_NAME will be set per service (each service has its own database)
+  SERVER_PORT: 8080
+  PORT: 8080
+  # CORS settings for production
+  CORS_ALLOWED_ORIGINS: "*"
+  CORS_ALLOW_CREDENTIALS: "true"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: shopifake
+      POSTGRES_PASSWORD: shopifake_pass
+      POSTGRES_DB: shopifake
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopifake"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  bus:
+    image: shopifake-bus:test-local
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: testuser
+      RABBITMQ_DEFAULT_PASS: testpass
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Application services
+  # Note: Images will be overridden by CI workflow with GHCR images from the lock
+  gateway:
+    image: shopifake-gateway:test-local
+    environment:
+      <<: *spring-prod
+      BETTER_AUTH_SECRET: false-secret-key-for-development-only-min-32-chars
+      SERVICES_ACCESS_URL: http://access:8080
+      SERVICES_AUDIT_URL: http://audit:8080
+      SERVICES_CATALOG_URL: http://catalog:8080
+      SERVICES_CUSTOMERS_URL: http://customers:8080
+      SERVICES_INVENTORY_URL: http://inventory:8080
+      SERVICES_ORDERS_URL: http://orders:8080
+      SERVICES_PRICING_URL: http://pricing:8080
+      SERVICES_RECOMMENDER_URL: http://recommender:8000
+      SERVICES_SALES_DASHBOARD_URL: http://sales-dashboard:8080
+      SERVICES_SITES_URL: http://sites:8080
+      SERVICES_CHATBOT_URL: http://chatbot:8000
+      SERVICES_AUTH_B2C_URL: http://auth-b2c:3000
+      SERVICES_AUTH_B2E_URL: http://auth-b2e:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      bus:
+        condition: service_healthy
+      access:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+      catalog:
+        condition: service_healthy
+      customers:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+      orders:
+        condition: service_healthy
+      pricing:
+        condition: service_healthy
+      sales-dashboard:
+        condition: service_healthy
+      sites:
+        condition: service_healthy
+      chatbot:
+        condition: service_healthy
+      recommender:
+        condition: service_healthy
+      auth-b2c:
+        condition: service_healthy
+      auth-b2e:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  access:
+    image: shopifake-access:test-local
+    environment:
+      <<: *spring-prod
+      DB_NAME: shopifake_access
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_access
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_access
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  audit:
+    image: shopifake-audit:test-local
+    environment:
+      <<: *spring-prod
+      DB_NAME: shopifake_audit
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_audit
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_audit
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  catalog:
+    image: shopifake-catalog:test-local
+    environment:
+      <<: *spring-prod
+      SPRING_PROFILES_ACTIVE: "prod"
+      DB_NAME: shopifake_catalog
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["/app/application"]  
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  customers:
+    image: shopifake-customers:test-local
+    environment:
+      <<: *spring-prod
+      DB_NAME: shopifake_customers
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_customers
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_customers
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  inventory:
+    image: shopifake-inventory:test-local
+    environment:
+      <<: *spring-prod
+      DB_NAME: shopifake_inventory
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_inventory
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_inventory
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  orders:
+    image: shopifake-orders:test-local
+    environment:
+      <<: *spring-prod
+      DB_NAME: shopifake_orders
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_orders
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_orders
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  pricing:
+    image: shopifake-pricing:test-local
+    environment:
+      <<: *spring-prod
+      DB_NAME: shopifake_pricing
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_pricing
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_pricing
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  sales-dashboard:
+    image: shopifake-sales-dashboard:test-local
+    environment:
+      <<: *spring-prod
+      DB_NAME: shopifake_sales_dashboard
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_sales_dashboard
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_sales_dashboard
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  sites:
+    image: shopifake-sites:test-local
+    environment:
+      <<: *spring-prod
+      DB_NAME: shopifake_sites
+      DB_URL: jdbc:postgresql://postgres:5432/shopifake_sites
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shopifake_sites
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  chatbot:
+    image: shopifake-chatbot:test-local
+    environment:
+      ENVIRONMENT: production
+      POSTGRES_USER: shopifake
+      POSTGRES_PASSWORD: shopifake_pass
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: shopifake_chatbot
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  recommender:
+    image: shopifake-recommender:test-local
+    environment:
+      ENVIRONMENT: production
+      POSTGRES_USER: shopifake
+      POSTGRES_PASSWORD: shopifake_pass
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: shopifake_recommender
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-b2c:
+    image: shopifake-auth-b2c:test-local
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://shopifake:shopifake_pass@postgres:5432/shopifake_auth_b2c
+      BETTER_AUTH_SECRET: test-secret-key-for-development-only-min-32-chars
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-b2e:
+    image: shopifake-auth-b2e:test-local
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://shopifake:shopifake_pass@postgres:5432/shopifake_auth_b2e
+      BETTER_AUTH_SECRET: test-secret-key-for-development-only-min-32-chars
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+

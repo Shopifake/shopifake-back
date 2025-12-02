@@ -1,0 +1,25 @@
+meta {
+  name: List Products
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/catalog/products?siteId={{siteId}}&status={{status}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+vars:pre-request {
+  status: PUBLISHED
+}
+
+docs {
+  # List Products
+  
+  Lists products for a site. Adjust the `status` query parameter (`DRAFT`, `PUBLISHED`, `SCHEDULED`) or remove it entirely to fetch all records.
+}

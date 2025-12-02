@@ -1,0 +1,33 @@
+meta {
+  name: Update Product
+  type: http
+  seq: 14
+}
+
+patch {
+  url: {{baseUrl}}/api/catalog/products/{{productId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Sample Product (Updated)",
+    "description": "New description for the product",
+    "categories": [
+      "featured",
+      "restock"
+    ]
+  }
+}
+
+docs {
+  # Update Product
+
+  Partial update of product metadata. Provide only the fields you want to change.
+}
+

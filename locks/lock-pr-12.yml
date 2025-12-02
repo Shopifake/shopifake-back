@@ -1,0 +1,162 @@
+{
+  "metadata": {
+    "commit": "6082921de05c18461b6e664ba8a720823ab3b26d",
+    "generated_at": "2025-11-18T13:09:57.262776+00:00",
+    "generator": "generate_lock.py@v1",
+    "source_branch": "HEAD"
+  },
+  "services": {
+    "shopifake-access": {
+      "git_sha": "dfe7a56a99cb79ab4d23aec9418455d2cd58faca",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-access",
+        "tag": "main-dfe7a56"
+      },
+      "submodule_path": "services/shopifake-access"
+    },
+    "shopifake-audit": {
+      "git_sha": "f9681c29db04ac534b976ac6d3d6749cf2423704",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-audit",
+        "tag": "main-f9681c2"
+      },
+      "submodule_path": "services/shopifake-audit"
+    },
+    "shopifake-auth-b2c": {
+      "git_sha": "c2204eb80bdf0ffee826275a9a2dd714b90ce92e",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-auth-b2c",
+        "tag": "sha-c2204eb"
+      },
+      "submodule_path": "infra/shopifake-auth-b2c"
+    },
+    "shopifake-auth-b2e": {
+      "git_sha": "7ad79eb5829f386e2845c2ce6908790692fe5942",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-auth-b2e",
+        "tag": "sha-7ad79eb"
+      },
+      "submodule_path": "infra/shopifake-auth-b2e"
+    },
+    "shopifake-bus": {
+      "git_sha": "7eff74da173a2fdc465524a93a8ecb9f992d0360",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-bus",
+        "tag": "sha-7eff74d"
+      },
+      "submodule_path": "infra/shopifake-bus"
+    },
+    "shopifake-catalog": {
+      "git_sha": "e4d932aa4e211e6f5fa91076286d7059ba5d2ab4",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-catalog",
+        "tag": main-native-8a509b4"
+      },
+      "submodule_path": "services/shopifake-catalog"
+    },
+    "shopifake-chatbot": {
+      "git_sha": "41001efcaff9aa51cd7a54dffc44496471f7347f",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-chatbot",
+        "tag": "sha-41001ef"
+      },
+      "submodule_path": "services/shopifake-chatbot"
+    },
+    "shopifake-customers": {
+      "git_sha": "16283b6ec77f4d85968be70a44896845e32b6106",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-customers",
+        "tag": "main-16283b6"
+      },
+      "submodule_path": "services/shopifake-customers"
+    },
+    "shopifake-gateway": {
+      "git_sha": "c82072b658e72850796a920b326b820a0455b32d",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-gateway",
+        "tag": "main-c82072b"
+      },
+      "submodule_path": "infra/shopifake-gateway"
+    },
+    "shopifake-grafana": {
+      "git_sha": "0a849bb03f5f8046f08344d48395e94354aa565f",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-grafana",
+        "tag": "0a849bb"
+      },
+      "submodule_path": "infra/shopifake-grafana"
+    },
+    "shopifake-inventory": {
+      "git_sha": "a87202c96e20a9f8ebb5ef3f6620201d21f3a51a",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-inventory",
+        "tag": "main-a87202c"
+      },
+      "submodule_path": "services/shopifake-inventory"
+    },
+    "shopifake-orders": {
+      "git_sha": "234e5bda99171c9bf6137e41dff1892b0b9324cf",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-orders",
+        "tag": "main-234e5bd"
+      },
+      "submodule_path": "services/shopifake-orders"
+    },
+    "shopifake-otel-collector": {
+      "git_sha": "0fce6b8d282d0e20460cbfc308360d6f371df1cb",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-otel-collector",
+        "tag": "0fce6b8"
+      },
+      "submodule_path": "infra/shopifake-otel-collector"
+    },
+    "shopifake-pricing": {
+      "git_sha": "0a44a16eec529b28ec15361f5e4a92002a635749",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-pricing",
+        "tag": "main-0a44a16"
+      },
+      "submodule_path": "services/shopifake-pricing"
+    },
+    "shopifake-prometheus": {
+      "git_sha": "a001daf3d1cf250af05dfdc1ab150958074ede4b",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-prometheus",
+        "tag": "a001daf"
+      },
+      "submodule_path": "infra/shopifake-prometheus"
+    },
+    "shopifake-recommender": {
+      "git_sha": "5611c567628fe961e5afd76b23b4c185173601a2",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-recommender",
+        "tag": "sha-5611c56"
+      },
+      "submodule_path": "services/shopifake-recommender"
+    },
+    "shopifake-sales-dashboard": {
+      "git_sha": "1f1c62546ac43c539a2f2951cafd7e417e49b4e5",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-sales-dashboard",
+        "tag": "main-1f1c625"
+      },
+      "submodule_path": "services/shopifake-sales-dashboard"
+    },
+    "shopifake-sites": {
+      "git_sha": "265b276f268b3188b04bfb9aea81dd70182d2156",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-sites",
+        "tag": "main-265b276"
+      },
+      "submodule_path": "services/shopifake-sites"
+    },
+    "shopifake-test-runner": {
+      "git_sha": "f0345aa4e83b758b0d069894c4df2a8c38fab19c",
+      "image": {
+        "repository": "ghcr.io/shopifake/shopifake-test-runner",
+        "tag": "sha-f0345aa"
+      },
+      "submodule_path": "infra/shopifake-test-runner"
+    }
+  }
+}

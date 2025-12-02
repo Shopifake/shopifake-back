@@ -1,0 +1,21 @@
+meta {
+  name: Get Active Price
+  type: http
+  seq: 33
+}
+
+get {
+  url: {{baseUrl}}/api/pricing/prices/product/{{productId}}/active
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  # Get Active Price
+
+  Fetches the price currently in effect for the product. Returns HTTP 404 if no active price exists.
+}
+

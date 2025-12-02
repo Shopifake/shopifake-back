@@ -1,0 +1,186 @@
+name: Staging Tests
+
+on:
+  workflow_call:
+    inputs:
+      lock-path:
+        description: 'Relative path of the lock file'
+        required: true
+        type: string
+
+jobs:
+  test-runner:
+    name: Run System Tests in Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 15
+    # TODO: Enable chaos tests once urllib3 < 2.0 fix is deployed
+    # Currently disabled due to SSL recursion bug with kubernetes-python
+    # See: infra/shopifake-test-runner/requirements.txt (urllib3 pin)
+    env:
+      KUBECONFIG: /tmp/kubeconfig
+      NAMESPACE: shopifake-staging
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup kubeconfig
+        env:
+          KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG }}
+        run: |
+          echo "$KUBECONFIG_BASE64" | base64 -d > $KUBECONFIG
+          chmod 600 $KUBECONFIG
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+
+      - name: Install helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.15.0'
+
+      - name: Verify cluster connectivity
+        run: |
+          echo "Testing cluster connectivity..."
+          kubectl --kubeconfig=$KUBECONFIG cluster-info
+          kubectl --kubeconfig=$KUBECONFIG get namespace $NAMESPACE || {
+            echo "❌ Cannot access namespace $NAMESPACE"
+            exit 1
+          }
+          echo "✅ Cluster connectivity verified"
+
+      - name: Extract test-runner image from lock
+        id: image
+        run: |
+          IMAGE_REPO=$(jq -r '.services["shopifake-test-runner"].image.repository' ${{ inputs.lock-path }})
+          IMAGE_TAG=$(jq -r '.services["shopifake-test-runner"].image.tag' ${{ inputs.lock-path }})
+          echo "repository=$IMAGE_REPO" >> $GITHUB_OUTPUT
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Using test-runner image: $IMAGE_REPO:$IMAGE_TAG"
+
+      - name: Deploy test-runner Job
+        env:
+          GATEWAY_URL: ${{ secrets.STAGING_GATEWAY_URL }}
+          TEST_TIMEOUT: ${{ vars.TEST_TIMEOUT || '300' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}
+          LOCUST_USERS: ${{ vars.LOCUST_USERS || '20' }}
+          LOCUST_SPAWN_RATE: ${{ vars.LOCUST_SPAWN_RATE || '10' }}
+          LOCUST_RUN_TIME: ${{ vars.LOCUST_RUN_TIME || '120s' }}
+        run: |
+          JOB_NAME="test-runner-$(date +%s)"
+          
+          echo "Deploying test-runner Job: $JOB_NAME"
+          echo "  Image: ${{ steps.image.outputs.repository }}:${{ steps.image.outputs.tag }}"
+          echo "  Gateway URL: $GATEWAY_URL"
+          echo "  Timeout: $TEST_TIMEOUT"
+          echo "  Test Suite: LOAD ONLY (chaos tests disabled - TODO: fix urllib3 SSL bug)"
+          
+          helm upgrade --install "$JOB_NAME" infra/shopifake-test-runner/chart \
+            --kubeconfig=$KUBECONFIG \
+            --namespace $NAMESPACE \
+            --set image.repository="${{ steps.image.outputs.repository }}" \
+            --set image.tag="${{ steps.image.outputs.tag }}" \
+            --set-string "args[0]=--mode" \
+            --set-string "args[1]=staging" \
+            --set-string "args[2]=--suite" \
+            --set-string "args[3]=load" \
+            --set-string "args[4]=--verbose" \
+            --set-string "env[0].name=BASE_URL" \
+            --set-string "env[0].value=$GATEWAY_URL" \
+            --set-string "env[1].name=TIMEOUT" \
+            --set-string "env[1].value=$TEST_TIMEOUT" \
+            --set-string "env[2].name=GITHUB_TOKEN" \
+            --set-string "env[2].value=$GITHUB_TOKEN" \
+            --set-string "env[3].name=GITHUB_SHA" \
+            --set-string "env[3].value=$GITHUB_SHA" \
+            --set-string "env[4].name=K8S_NAMESPACE" \
+            --set-string "env[4].value=$NAMESPACE" \
+            --set-string "env[5].name=LOCUST_USERS" \
+            --set-string "env[5].value=$LOCUST_USERS" \
+            --set-string "env[6].name=LOCUST_SPAWN_RATE" \
+            --set-string "env[6].value=$LOCUST_SPAWN_RATE" \
+            --set-string "env[7].name=LOCUST_RUN_TIME" \
+            --set-string "env[7].value=$LOCUST_RUN_TIME" \
+            --set-string "env[8].name=POST_RESULTS_TO_GITHUB" \
+            --set-string "env[8].value=false" \
+            --wait \
+            --timeout 10m
+          
+          echo "JOB_NAME=$JOB_NAME" >> $GITHUB_ENV
+          echo "✅ Job deployed successfully"
+
+      - name: Wait for Job completion
+        run: |
+          echo "Waiting for Job $JOB_NAME to complete..."
+          
+          # Get the job name
+          JOB_FULL_NAME=$(kubectl --kubeconfig=$KUBECONFIG get job -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1 | cut -d'/' -f2)
+          
+          echo "Job: $JOB_FULL_NAME"
+          
+          # Wait for either complete or failed condition (max 10 minutes)
+          for i in {1..120}; do
+            STATUS=$(kubectl --kubeconfig=$KUBECONFIG get job/$JOB_FULL_NAME -n $NAMESPACE -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}' 2>/dev/null || echo "")
+            FAILED=$(kubectl --kubeconfig=$KUBECONFIG get job/$JOB_FULL_NAME -n $NAMESPACE -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}' 2>/dev/null || echo "")
+            
+            if [ "$STATUS" = "True" ]; then
+              echo "✅ Job completed successfully"
+              break
+            elif [ "$FAILED" = "True" ]; then
+              echo "❌ Job failed"
+              break
+            fi
+            
+            echo "Still running... ($i/120)"
+            sleep 5
+          done
+
+      - name: Get Job status
+        id: job-status
+        if: always()
+        run: |
+          JOB=$(kubectl --kubeconfig=$KUBECONFIG get job -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1)
+          
+          SUCCEEDED=$(kubectl --kubeconfig=$KUBECONFIG get $JOB -n $NAMESPACE -o jsonpath='{.status.succeeded}' 2>/dev/null || echo "0")
+          FAILED=$(kubectl --kubeconfig=$KUBECONFIG get $JOB -n $NAMESPACE -o jsonpath='{.status.failed}' 2>/dev/null || echo "0")
+          
+          echo "Job Status:"
+          echo "  Succeeded: $SUCCEEDED"
+          echo "  Failed: $FAILED"
+          
+          if [ "$SUCCEEDED" = "1" ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo "✅ Tests passed"
+          elif [ "$FAILED" = "1" ]; then
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "❌ Tests failed"
+          else
+            echo "result=unknown" >> $GITHUB_OUTPUT
+            echo "⚠️  Job status unknown"
+          fi
+
+      - name: Collect test logs
+        if: always()
+        run: |
+          POD=$(kubectl --kubeconfig=$KUBECONFIG get pods -n $NAMESPACE -l "app.kubernetes.io/instance=$JOB_NAME" -o name | head -1)
+          echo "=== Test Runner Logs ==="
+          kubectl --kubeconfig=$KUBECONFIG logs $POD -n $NAMESPACE || true
+
+      - name: Cleanup Job
+        if: always()
+        run: |
+          echo "Cleaning up Job: $JOB_NAME"
+          helm uninstall "$JOB_NAME" --kubeconfig=$KUBECONFIG --namespace $NAMESPACE || true
+          echo "✅ Cleanup complete"
+
+      - name: Fail workflow if tests failed
+        if: steps.job-status.outputs.result == 'failure' || steps.job-status.outputs.result == 'unknown'
+        run: |
+          echo "❌ Workflow failed due to test results: ${{ steps.job-status.outputs.result }}"
+          exit 1

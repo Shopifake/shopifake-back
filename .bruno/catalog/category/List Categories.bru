@@ -1,0 +1,22 @@
+meta {
+  name: List Categories
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/catalog/products/categories?siteId={{siteId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  # List Categories
+
+  Retrieves all categories for the current site. Remove the query parameter to list categories across every site.
+}
+

@@ -1,0 +1,51 @@
+meta {
+  name: Update Site
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/sites/{{siteId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Analog Atlas Updated",
+    "description": "Updated description for the site",
+    "currency": "EUR",
+    "language": "FR"
+  }
+}
+
+
+docs {
+  # Update Site
+  
+  Updates a site's fields. All fields are optional - only provided fields will be updated.
+  
+  Uses the `{{siteId}}` environment variable which is automatically set when creating a site.
+  
+  ## Updatable Fields
+  - `name`: Site name (max 255 characters)
+  - `slug`: Site slug (max 255 characters, must be unique)
+  - `description`: Site description (max 2000 characters)
+  - `currency`: Currency code (USD, EUR, GBP, JPY, CAD, AUD, CHF, CNY)
+  - `language`: Language code (EN, FR, DE, ES, IT, PT, NL, JA, ZH)
+  - `config`: Site configuration JSON string (must match SiteConfig structure)
+  
+  ## Notes
+  - All fields are optional - only include the fields you want to update
+  - Currency and language values are case-insensitive (will be converted to uppercase)
+  - If updating the slug, it must be unique (excluding the current site)
+  - If updating the config, it must be a valid JSON string matching the SiteConfig structure
+  
+  ## Response Format
+  Returns the updated site with all fields.
+}
+

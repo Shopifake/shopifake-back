@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shopifake Deployment Lock",
+  "type": "object",
+  "required": ["metadata", "services"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["generated_at", "generator", "source_branch", "commit"],
+      "properties": {
+        "generated_at": {
+          "type": "string",
+          "description": "UTC timestamp in ISO 8601 format"
+        },
+        "generator": {
+          "type": "string",
+          "description": "Name and version of the lock generator"
+        },
+        "source_branch": {
+          "type": "string",
+          "description": "Git branch from which the lock was generated"
+        },
+        "commit": {
+          "type": "string",
+          "description": "Commit SHA of the orchestration repository"
+        }
+      },
+      "additionalProperties": false
+    },
+    "services": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z0-9-]+$": {
+          "type": "object",
+          "required": ["submodule_path", "git_sha", "image"],
+          "properties": {
+            "submodule_path": {
+              "type": "string"
+            },
+            "git_sha": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "image": {
+              "type": "object",
+              "required": ["repository"],
+              "properties": {
+                "repository": {
+                  "type": "string"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "digest": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "notes": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+

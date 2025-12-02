@@ -1,0 +1,33 @@
+meta {
+  name: Chat - Initial Request
+  type: http
+  seq: 20
+}
+
+post {
+  url: {{baseUrl}}/chat
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "site_id": "site-001",
+    "history": [
+      {
+        "role": "user",
+        "content": "I need a present"
+      }
+    ],
+    "query": "I need a present"
+  }
+}
+
+docs {
+  # Chat - Initial Request
+  First turn of a conversation. Only the user message is present in `history`.
+}

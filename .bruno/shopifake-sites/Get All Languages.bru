@@ -1,0 +1,26 @@
+meta {
+  name: Get All Languages
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/sites/languages
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+docs {
+  # Get All Languages
+  
+  Retrieves all supported language codes.
+  
+  ## Response Format
+  Returns:
+  - `languages`: Array of supported language codes (EN, FR, DE, ES, IT, PT, NL, JA, ZH)
+  - `count`: Number of supported languages
+}

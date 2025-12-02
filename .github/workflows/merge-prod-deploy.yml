@@ -1,0 +1,107 @@
+name: Deploy to Production
+
+on:
+  workflow_call:
+    inputs:
+      lock-path:
+        description: 'Relative path of the lock file in the repository'
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      KUBECONFIG: /tmp/kubeconfig
+      NAMESPACE: shopifake-prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup kubeconfig
+        env:
+          KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG }}
+        run: |
+          echo "$KUBECONFIG_BASE64" | base64 -d > $KUBECONFIG
+          chmod 600 $KUBECONFIG
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+
+      - name: Install helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.15.0'
+
+      - name: Cache helm repositories
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/helm/repository
+          key: ${{ runner.os }}-helm-repo-${{ hashFiles('.github/workflows/merge-prod-deploy.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-helm-repo-
+
+      - name: Setup helm repositories
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null || true
+          helm repo update
+
+      - name: Parse lock file
+        id: parse
+        run: |
+          jq -r '.services | keys[]' ${{ inputs.lock-path }} > /tmp/services.txt
+          echo "Services: $(cat /tmp/services.txt | tr '\n' ' ')"
+
+      - name: Deploy databases
+        env:
+          DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
+        run: |
+          echo "TODO: Deploy databases using lock file ${{ inputs.lock-path }}"
+          # while read -r SERVICE_NAME; do
+          #   # Deploy PostgreSQL for each service
+          #   # Similar to staging but with production-grade settings
+          # done < /tmp/services.txt
+
+      - name: Create configmaps
+        env:
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
+          CORS_ALLOW_CREDENTIALS: ${{ secrets.CORS_ALLOW_CREDENTIALS }}
+        run: |
+          echo "TODO: Create configmaps using lock file ${{ inputs.lock-path }}"
+          # while read -r SERVICE_NAME; do
+          #   kubectl create configmap "${SERVICE_NAME}-config" ...
+          # done < /tmp/services.txt
+
+      - name: Create secrets
+        env:
+          DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
+        run: |
+          echo "TODO: Create secrets using lock file ${{ inputs.lock-path }}"
+          # while read -r SERVICE_NAME; do
+          #   kubectl create secret generic "${SERVICE_NAME}-secret" ...
+          # done < /tmp/services.txt
+
+      - name: Deploy services
+        run: |
+          echo "TODO: Deploy services using lock file ${{ inputs.lock-path }}"
+          # while read -r SERVICE_NAME; do
+          #   IMAGE_REPO=$(jq -r ".services[\"$SERVICE_NAME\"].image.repository" ${{ inputs.lock-path }})
+          #   IMAGE_TAG=$(jq -r ".services[\"$SERVICE_NAME\"].image.tag" ${{ inputs.lock-path }})
+          #   CHART_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+          #   helm upgrade --install "$SERVICE_NAME" "$CHART_PATH/chart" ...
+          # done < /tmp/services.txt
+
+      - name: Verify deployment
+        if: always()
+        run: |
+          echo "Deployment status:"
+          kubectl get pods -n $NAMESPACE -o wide
+

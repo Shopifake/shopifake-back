@@ -1,0 +1,52 @@
+name: CI Dev Pull Request
+
+on:
+  pull_request:
+    branches:
+      - staging
+    paths-ignore:
+      - 'locks/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  packages: read
+
+jobs:
+  generate_lock:
+    name: Generate Lock
+    uses: ./.github/workflows/pr-dev-generate-lock.yml
+    with:
+      lock-artifact-name: lock-${{ github.event.number }}
+      lock-filename: lock-pr-${{ github.event.number }}.yml
+
+  system_tests:
+    name: System Tests
+    needs: generate_lock
+    uses: ./.github/workflows/pr-dev-tests.yml
+    with:
+      compose-file: compose/system-tests.compose.yml
+      lock-artifact-name: lock-${{ github.event.number }}
+      lock-filename: lock-pr-${{ github.event.number }}.yml
+
+  publish_lock:
+    name: Publish Lock Summary
+    needs: generate_lock
+    uses: ./.github/workflows/pr-dev-publish-lock.yml
+    with:
+      lock-artifact-name: lock-${{ github.event.number }}
+      lock-filename: lock-pr-${{ github.event.number }}.yml
+
+  commit_lock:
+    name: Commit Lock to Staging
+    needs:
+      - generate_lock
+      - system_tests
+    if: github.event_name == 'pull_request' && needs.system_tests.result == 'success'
+    uses: ./.github/workflows/pr-dev-commit-lock.yml
+    with:
+      lock-artifact-name: lock-${{ github.event.number }}
+      lock-filename: lock-pr-${{ github.event.number }}.yml
+

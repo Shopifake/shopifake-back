@@ -1,0 +1,29 @@
+meta {
+  name: Check Slug Availability
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/sites/check-slug?slug=test-site
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+docs {
+  # Check Slug Availability
+  
+  Checks if a slug is available.
+  
+  ## Query Parameters
+  - `slug`: The slug to check for availability
+  
+  ## Response Format
+  Returns:
+  - `slug`: The slug that was checked
+  - `available`: Boolean indicating if the slug is available
+}

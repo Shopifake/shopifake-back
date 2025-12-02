@@ -1,0 +1,28 @@
+meta {
+  name: Get Site by Slug
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/sites/slug/{{siteSlug}}
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+docs {
+  # Get Site by Slug
+  
+  Retrieves a site using its slug instead of the UUID.
+  
+  Uses the `{{siteSlug}}` environment variable, which is automatically set
+  after successfully creating a site. You can also override it manually to
+  target any existing site slug.
+  
+  ## Response Format
+  Returns the complete site payload, identical to **Get Site by ID**.
+}

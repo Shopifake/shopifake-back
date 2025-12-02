@@ -1,0 +1,21 @@
+meta {
+  name: Delete Product
+  type: http
+  seq: 16
+}
+
+delete {
+  url: {{baseUrl}}/api/catalog/products/{{productId}}
+  body: none
+  auth: none
+}
+
+script:post-response {
+  bru.setEnvVar("productId", "");
+}
+
+docs {
+  # Delete Product
+  
+  Permanently removes the product from the catalog. Use with caution. The `productId` environment variable is cleared after deletion so subsequent requests don't reuse a stale ID.
+}

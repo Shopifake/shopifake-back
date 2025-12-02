@@ -1,0 +1,213 @@
+name: System Tests
+
+on:
+  workflow_call:
+    inputs:
+      compose-file:
+        description: 'Optional docker-compose file to spin up the stack'
+        required: false
+        type: string
+      lock-artifact-name:
+        description: 'Name of the artifact containing the lock file'
+        required: true
+        type: string
+      lock-filename:
+        description: 'Filename of the lock within the artifact'
+        required: true
+        type: string
+
+jobs:
+  system-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/images.json
+            compose/
+            scripts/init-databases.sql
+
+      - name: Download lock artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.lock-artifact-name }}
+          path: locks
+
+      - name: Extract images from lock
+        id: images
+        run: |
+          set -euo pipefail
+          LOCK_FILE="locks/${{ inputs.lock-filename }}"
+          IMAGES_JSON=".github/images.json"
+          
+          # Extract image tags from lock, filtering only services defined in images.json
+          # This automatically excludes monitoring/infra services without GHCR images
+          # Exclude test-runner as it's pulled separately, not with the stack
+          # Format: SERVICE_NAME=ghcr.io/owner/image:tag
+          IMAGE_MAP=$(jq -r --slurpfile registry "$IMAGES_JSON" '
+            .services | to_entries[] | 
+            select($registry[0][.key] != null) |
+            select(.key != "shopifake-test-runner") |
+            "\(.key | ascii_upcase)=\(.value.image.repository):\(.value.image.tag)"
+          ' "$LOCK_FILE")
+          
+          # Export as GitHub output (multi-line)
+          echo "$IMAGE_MAP" | while IFS='=' read -r service image; do
+            echo "${service}=${image}" >> "$GITHUB_OUTPUT"
+          done
+          
+          # Also save to file for docker-compose substitution
+          echo "$IMAGE_MAP" > /tmp/image-mapping.env
+          cat /tmp/image-mapping.env
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore Docker layer cache
+        uses: actions/cache@v4
+        with:
+          path: /var/lib/docker
+          key: ${{ runner.os }}-docker-${{ hashFiles('locks/${{ inputs.lock-filename }}') }}
+          restore-keys: |
+            ${{ runner.os }}-docker-
+
+      - name: Pull images from lock
+        run: |
+          set -euo pipefail
+          MISSING_IMAGES=()
+          
+          while IFS='=' read -r service image; do
+            echo "Pulling image for $service: $image"
+            if docker pull "$image"; then
+              echo "✓ Successfully pulled $image"
+            else
+              echo "✗ Failed to pull $image"
+              MISSING_IMAGES+=("$image")
+            fi
+          done < /tmp/image-mapping.env
+          
+          if [ ${#MISSING_IMAGES[@]} -gt 0 ]; then
+            echo "::error::The following images are missing from GHCR:"
+            printf '  - %s\n' "${MISSING_IMAGES[@]}"
+            exit 1
+          fi
+
+      - name: Generate docker-compose with lock images
+        id: compose-gen
+        run: |
+          set -euo pipefail
+          # Read lock and generate docker-compose override
+          LOCK_FILE="locks/${{ inputs.lock-filename }}"
+          IMAGES_JSON=".github/images.json"
+          COMPOSE_OVERRIDE="/tmp/compose-override.yml"
+          
+          # Create override with image references from lock
+          # Map lock service names (shopifake-*) to docker-compose service names (without prefix)
+          cat > "$COMPOSE_OVERRIDE" <<EOF
+          services:
+          EOF
+          
+          # Extract images and map to docker-compose service names
+          # Filter only services defined in images.json (same logic as pull step)
+          # Exclude test-runner as it's run separately, not as part of the stack
+          jq -r --slurpfile registry "$IMAGES_JSON" '
+            .services | to_entries[] | 
+            select($registry[0][.key] != null) |
+            select(.key != "shopifake-test-runner") |
+            "\(.key)\t\(.value.image.repository):\(.value.image.tag)"
+          ' "$LOCK_FILE" | while IFS=$'\t' read -r service_name image_ref; do
+              # Remove 'shopifake-' prefix for docker-compose service name
+              compose_service="${service_name#shopifake-}"
+              echo "  $compose_service:" >> "$COMPOSE_OVERRIDE"
+              echo "    image: $image_ref" >> "$COMPOSE_OVERRIDE"
+            done
+          
+          echo "compose-override=$COMPOSE_OVERRIDE" >> "$GITHUB_OUTPUT"
+          echo "Generated compose override:"
+          cat "$COMPOSE_OVERRIDE"
+
+      - name: Verify and prepare init-databases.sql
+        run: |
+          set -euo pipefail
+          if [ ! -f "scripts/init-databases.sql" ]; then
+            echo "::error::init-databases.sql not found"
+            exit 1
+          fi
+          echo "✓ init-databases.sql found"
+          ls -la scripts/init-databases.sql
+          # Copy to absolute path to ensure Docker can mount it
+          mkdir -p /tmp/postgres-init
+          cp scripts/init-databases.sql /tmp/postgres-init/01-init-databases.sql
+          cat /tmp/postgres-init/01-init-databases.sql
+
+      - name: Start system stack
+        id: start-stack
+        run: |
+          set -euo pipefail
+          # Generate temporary compose file with absolute path for SQL init
+          SQL_INIT_FILE="/tmp/postgres-init/01-init-databases.sql"
+          
+          # Modify compose file to use absolute path for SQL init
+          TEMP_COMPOSE="/tmp/system-tests-with-abs-path.yml"
+          sed "s|./scripts/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro|$SQL_INIT_FILE:/docker-entrypoint-initdb.d/01-init-databases.sql:ro|" \
+            "${{ inputs.compose-file }}" > "$TEMP_COMPOSE"
+          
+          # Merge base compose with override from lock
+          docker compose \
+            -f "$TEMP_COMPOSE" \
+            -f "${{ steps.compose-gen.outputs.compose-override }}" \
+            up -d --wait
+
+      - name: Pull test-runner image
+        run: |
+          # Extract test-runner image from lock (excluded from stack compose-override)
+          LOCK_FILE="locks/${{ inputs.lock-filename }}"
+          TEST_RUNNER_IMAGE=$(jq -r '.services["shopifake-test-runner"].image.repository + ":" + .services["shopifake-test-runner"].image.tag' "$LOCK_FILE")
+          echo "Pulling test-runner image: $TEST_RUNNER_IMAGE"
+          docker pull "$TEST_RUNNER_IMAGE"
+          echo "TEST_RUNNER_IMAGE=$TEST_RUNNER_IMAGE" >> $GITHUB_ENV
+
+      - name: Run system tests
+        run: |
+          docker run --rm \
+            --network host \
+            -e BASE_URL=http://localhost:8080 \
+            ${{ env.TEST_RUNNER_IMAGE }} \
+            --mode pr --suite system --verbose
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          TEMP_COMPOSE="/tmp/system-tests-with-abs-path.yml"
+          echo "=== Full logs from failing services ==="
+          docker compose \
+            -f "$TEMP_COMPOSE" \
+            -f "${{ steps.compose-gen.outputs.compose-override }}" \
+            logs --tail=200 gateway access audit catalog customers inventory orders pricing sales-dashboard sites || true
+          echo ""
+          echo "=== Checking environment variables ==="
+          docker compose \
+            -f "$TEMP_COMPOSE" \
+            -f "${{ steps.compose-gen.outputs.compose-override }}" \
+            exec -T access env | grep -E "(DB_|SPRING_|PORT)" || true
+
+      - name: Tear down stack
+        if: always()
+        run: |
+          TEMP_COMPOSE="/tmp/system-tests-with-abs-path.yml"
+          docker compose \
+            -f "$TEMP_COMPOSE" \
+            -f "${{ steps.compose-gen.outputs.compose-override }}" \
+            down -v
+

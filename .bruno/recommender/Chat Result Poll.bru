@@ -1,0 +1,17 @@
+meta {
+  name: Chat - Result Poll
+  type: http
+  seq: 23
+}
+
+get {
+  url: {{baseUrl}}/chat/result/{{requestId}}
+  auth: none
+}
+
+docs {
+  # Chat - Result Poll
+  Polls the `/chat/result/{request_id}` endpoint. Update `requestId` with the value
+  returned by the POST /chat response to observe `pending`, `satisfied`,
+  `unsatisfied`, or `need_more_info` decoder states.
+}

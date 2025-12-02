@@ -1,0 +1,21 @@
+meta {
+  name: List Prices by Product
+  type: http
+  seq: 32
+}
+
+get {
+  url: {{baseUrl}}/api/pricing/prices/product/{{productId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  # List Prices by Product
+  
+  Returns the full pricing history, ordered by `effectiveFrom` (newest first).
+}

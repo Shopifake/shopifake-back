@@ -1,0 +1,53 @@
+meta {
+  name: Create Catalog Product
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/catalog/products
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "siteId": "{{siteId}}",
+    "name": "Sample Product",
+    "description": "High quality sample item",
+    "images": [
+      "https://cdn.example.com/sample.png"
+    ],
+    "categoryIds": [
+      "{{categoryId}}"
+    ],
+    "sku": "sample-002",
+    "status": "DRAFT",
+    "filters": [
+      {
+        "filterId": "{{filterId}}",
+        "textValue": "Organic Cotton"
+      }
+    ]
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("productId", res.body.id);
+}
+
+docs {
+  # Create Catalog Product
+  
+  Creates a storefront-ready product. The resulting `productId` is stored in the shared environment.
+  
+  - `siteId` must reference an existing site.
+  - `categoryIds` must correspond to existing categories belonging to the same site.
+  - `status` accepts `DRAFT`, `PUBLISHED`, ou `SCHEDULED`.
+- `filters` est une liste d'objets `{ filterId, textValue|numericValue|min/max|start/end }`
+    permettant d'associer une valeur spécifique à chaque filtre.
+}

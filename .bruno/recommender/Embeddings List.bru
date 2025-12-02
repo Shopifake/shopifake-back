@@ -1,0 +1,20 @@
+meta {
+  name: Embeddings List
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/v1/embeddings/list
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  # Embeddings List
+  Lists embeddings stored in Qdrant.
+}

@@ -1,0 +1,57 @@
+name: Staging Cluster Healthcheck
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Environment identifier'
+        required: false
+        type: string
+        default: 'staging'
+    secrets:
+      KUBECONFIG:
+        required: true
+        description: The base64-encoded kubeconfig for the cluster, with default namespace "shopifake-sandbox" so that nobody messes up anything important namespaces by accident
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+
+    steps:
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+
+      - name: Setup kubeconfig
+        run: |
+          if ! kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) config view >/dev/null 2>&1; then
+            echo "ERROR: Invalid kubeconfig"
+            exit 1
+          fi
+          echo "Kubeconfig loaded successfully"
+
+      - name: Check cluster connectivity
+        run: |
+          echo "Testing cluster connectivity..."
+          if kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) cluster-info >/dev/null 2>&1; then
+          echo "Connected to cluster"
+          kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) cluster-info
+          else
+          echo "Cannot connect to cluster"
+          exit 1
+          fi
+
+      - name: Verify namespace exists
+        run: |
+          echo "Checking if namespace 'shopifake-staging' exists..."
+          if kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) get namespace shopifake-staging >/dev/null 2>&1; then
+            echo "Namespace 'shopifake-staging' exists"
+            kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) get namespace shopifake-staging
+          else
+            echo "ERROR: Namespace 'shopifake-staging' does not exist"
+            echo "Available namespaces:"
+            kubectl --kubeconfig <(echo "${{ secrets.KUBECONFIG }}" | base64 -d) get namespaces
+            exit 1
+          fi

@@ -1,0 +1,40 @@
+meta {
+  name: Create Quantitative Filter
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/catalog/filters
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "siteId": "{{siteId}}",
+    "categoryId": "{{categoryId}}",
+    "key": "size-range",
+    "type": "QUANTITATIVE",
+    "displayName": "Size Range",
+    "unit": "CM",
+    "minValue": 30,
+    "maxValue": 120
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("filterId", res.body.id);
+}
+
+docs {
+  # Create Quantitative Filter
+  
+  Creates a quantitative filter bound to a category. These filters require a
+  `unit` (e.g., `CM`, `KG`) and optional `minValue` / `maxValue` values. If a
+  value is omitted, that end of the range is considered open.
+}

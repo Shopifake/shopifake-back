@@ -1,0 +1,22 @@
+meta {
+  name: Delete Category
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/api/catalog/products/categories/{{categoryId}}
+  body: none
+  auth: none
+}
+
+script:post-response {
+  bru.setEnvVar("categoryId", "");
+}
+
+docs {
+  # Delete Category
+
+  Deletes the currently selected category. The request fails if the category is still referenced by any product.
+}
+

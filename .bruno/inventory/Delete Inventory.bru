@@ -1,0 +1,18 @@
+meta {
+  name: Delete Inventory
+  type: http
+  seq: 24
+}
+
+delete {
+  url: {{baseUrl}}/api/inventory/{{productId}}
+  body: none
+  auth: none
+}
+
+
+docs {
+  # Delete Inventory
+  
+  Removes the inventory row associated with the `productId`. This is irreversible.
+}
