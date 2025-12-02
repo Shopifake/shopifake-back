@@ -1,0 +1,113 @@
+name: Production Smoke Tests
+
+on:
+  workflow_call:
+    inputs:
+      lock-path:
+        description: 'Relative path of the lock file'
+        required: true
+        type: string
+
+jobs:
+  smoke-tests:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    env:
+      KUBECONFIG: /tmp/kubeconfig
+      NAMESPACE: shopifake-prod
+
+    steps:
+      - name: Setup kubeconfig
+        env:
+          KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG }}
+        run: |
+          echo "$KUBECONFIG_BASE64" | base64 -d > $KUBECONFIG
+          chmod 600 $KUBECONFIG
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+
+      - name: Verify all pods are running
+        run: |
+          echo "Checking pod status..."
+          
+          NOT_RUNNING=$(kubectl get pods -n $NAMESPACE --no-headers | grep -v "Running\|Completed" | wc -l)
+          if [ "$NOT_RUNNING" -gt 0 ]; then
+            echo "Some pods are not running:"
+            kubectl get pods -n $NAMESPACE | grep -v "Running\|Completed"
+            exit 1
+          fi
+          
+          echo "All pods are running"
+          kubectl get pods -n $NAMESPACE
+
+      - name: Check gateway health
+        run: |
+          echo "Testing gateway health endpoint..."
+          
+          # Get gateway pod name
+          GATEWAY_POD=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=shopifake-gateway -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+          
+          if [ -z "$GATEWAY_POD" ]; then
+            echo "Warning: Gateway pod not found, skipping health check"
+            exit 0
+          fi
+          
+          # Test health endpoint via kubectl exec
+          HTTP_CODE=$(kubectl exec -n $NAMESPACE $GATEWAY_POD -- curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health 2>/dev/null || echo "000")
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Gateway health check passed (HTTP $HTTP_CODE)"
+          else
+            echo "Gateway health check failed (HTTP $HTTP_CODE)"
+            kubectl logs -n $NAMESPACE $GATEWAY_POD --tail=50
+            exit 1
+          fi
+
+      - name: Check services health
+        run: |
+          echo "Checking service health endpoints..."
+          
+          SERVICES="shopifake-catalog shopifake-orders shopifake-inventory"
+          FAILED=0
+          
+          for SERVICE in $SERVICES; do
+            POD=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=$SERVICE -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+            
+            if [ -z "$POD" ]; then
+              echo "Warning: $SERVICE pod not found, skipping"
+              continue
+            fi
+            
+            HTTP_CODE=$(kubectl exec -n $NAMESPACE $POD -- curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health 2>/dev/null || echo "000")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "$SERVICE: OK (HTTP $HTTP_CODE)"
+            else
+              echo "$SERVICE: FAILED (HTTP $HTTP_CODE)"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+          
+          if [ "$FAILED" -gt 0 ]; then
+            echo "$FAILED service(s) failed health check"
+            exit 1
+          fi
+          
+          echo "All service health checks passed"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "=== Deployment Summary ==="
+          echo "Namespace: $NAMESPACE"
+          echo ""
+          echo "Pods:"
+          kubectl get pods -n $NAMESPACE -o wide
+          echo ""
+          echo "Services:"
+          kubectl get svc -n $NAMESPACE
+
