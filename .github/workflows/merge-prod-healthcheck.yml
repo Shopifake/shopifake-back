@@ -2,6 +2,10 @@ name: Production Cluster Healthcheck
 
 on:
   workflow_call:
+    secrets:
+      KUBECONFIG:
+        required: true
+        description: The base64-encoded kubeconfig for the cluster
 
 jobs:
   healthcheck:
@@ -13,8 +17,10 @@ jobs:
       NAMESPACE: shopifake-prod
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
 
       - name: Setup kubeconfig
         env:
@@ -22,16 +28,43 @@ jobs:
         run: |
           echo "$KUBECONFIG_BASE64" | base64 -d > $KUBECONFIG
           chmod 600 $KUBECONFIG
+          if ! kubectl config view >/dev/null 2>&1; then
+            echo "ERROR: Invalid kubeconfig"
+            exit 1
+          fi
+          echo "Kubeconfig loaded successfully"
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: 'v1.28.0'
-
-      - name: Run production cluster health checks
+      - name: Check cluster connectivity
         run: |
-          echo "TODO: Verify production cluster is healthy before deployment"
-          # kubectl get nodes
-          # kubectl get pods -n $NAMESPACE
-          # scripts/cluster/healthcheck.sh --env prod
+          echo "Testing cluster connectivity..."
+          if kubectl cluster-info >/dev/null 2>&1; then
+            echo "Connected to cluster"
+            kubectl cluster-info
+          else
+            echo "Cannot connect to cluster"
+            exit 1
+          fi
 
+      - name: Verify namespace exists
+        run: |
+          echo "Checking if namespace '$NAMESPACE' exists..."
+          if kubectl get namespace $NAMESPACE >/dev/null 2>&1; then
+            echo "Namespace '$NAMESPACE' exists"
+            kubectl get namespace $NAMESPACE
+          else
+            echo "ERROR: Namespace '$NAMESPACE' does not exist"
+            echo "Available namespaces:"
+            kubectl get namespaces
+            exit 1
+          fi
+
+      - name: Check cluster nodes health
+        run: |
+          echo "Checking cluster nodes..."
+          kubectl get nodes
+          NOT_READY=$(kubectl get nodes --no-headers | grep -v " Ready" | wc -l)
+          if [ "$NOT_READY" -gt 0 ]; then
+            echo "WARNING: $NOT_READY node(s) are not ready"
+          else
+            echo "All nodes are ready"
+          fi

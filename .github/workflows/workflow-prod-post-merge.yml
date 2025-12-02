@@ -16,6 +16,8 @@ jobs:
   prod_healthcheck:
     needs: prepare
     uses: ./.github/workflows/merge-prod-healthcheck.yml
+    secrets:
+      KUBECONFIG: ${{ secrets.KUBECONFIG }}
 
   deploy_prod:
     needs:
@@ -24,12 +26,21 @@ jobs:
     uses: ./.github/workflows/merge-prod-deploy.yml
     with:
       lock-path: ${{ needs.prepare.outputs.lock-path }}
+    secrets: inherit
+
+  smoke_tests:
+    needs:
+      - prepare
+      - deploy_prod
+    uses: ./.github/workflows/merge-prod-smoke-tests.yml
+    with:
+      lock-path: ${{ needs.prepare.outputs.lock-path }}
+    secrets: inherit
 
   release_tag:
     needs:
       - prepare
-      - deploy_prod
+      - smoke_tests
     uses: ./.github/workflows/merge-prod-release-tag.yml
     with:
       lock-path: ${{ needs.prepare.outputs.lock-path }}
-
