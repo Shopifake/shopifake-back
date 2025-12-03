@@ -125,9 +125,8 @@ jobs:
           if helm list -n $NAMESPACE | grep -q "^shopifake-postgres"; then
             echo "PostgreSQL already exists, skipping installation"
           else
-            echo "Deploying shared PostgreSQL 16 instance..."
+            echo "Deploying shared PostgreSQL instance..."
             helm install shopifake-postgres bitnami/postgresql \
-              --version 16.2.3 \
               --namespace $NAMESPACE \
               --set auth.postgresPassword="$POSTGRES_ADMIN_PASSWORD" \
               --set primary.persistence.size=20Gi \
