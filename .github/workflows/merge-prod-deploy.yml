@@ -104,8 +104,9 @@ jobs:
             echo "Qdrant already exists, skipping"
           fi
 
-      - name: Deploy databases
+      - name: Deploy shared PostgreSQL database
         env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
           DB_PASSWORD_ACCESS: ${{ secrets.DB_PASSWORD_ACCESS }}
           DB_PASSWORD_AUDIT: ${{ secrets.DB_PASSWORD_AUDIT }}
           DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
@@ -115,49 +116,58 @@ jobs:
           DB_PASSWORD_PRICING: ${{ secrets.DB_PASSWORD_PRICING }}
           DB_PASSWORD_SALES_DASHBOARD: ${{ secrets.DB_PASSWORD_SALES_DASHBOARD }}
           DB_PASSWORD_SITES: ${{ secrets.DB_PASSWORD_SITES }}
+          DB_PASSWORD_CHATBOT: ${{ secrets.DB_PASSWORD_CHATBOT }}
+          DB_PASSWORD_RECOMMENDER: ${{ secrets.DB_PASSWORD_RECOMMENDER }}
           DB_PASSWORD_AUTH_B2C: ${{ secrets.DB_PASSWORD_AUTH_B2C }}
           DB_PASSWORD_AUTH_B2E: ${{ secrets.DB_PASSWORD_AUTH_B2E }}
         run: |
-          while read -r SERVICE_NAME; do
-            # Get submodule path to filter services
-            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
-            
-            # Only deploy databases for Java services in services/ directory and Node.js auth services in infra/
-            if [[ ! "$SUBMODULE_PATH" == services/* ]] && [[ ! "$SUBMODULE_PATH" == infra/shopifake-auth-* ]]; then
-              echo "Skipping $SERVICE_NAME (not in services/ or auth service)"
-              continue
-            fi
-            
-            # Exclude Python services
-            if [[ "$SERVICE_NAME" == "shopifake-recommender" || "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
-              echo "Skipping $SERVICE_NAME (Python service)"
-              continue
-            fi
-          
-            DB_NAME="${SERVICE_NAME}-db"
-          
-            if helm list -n $NAMESPACE | grep -q "^$DB_NAME"; then
-              echo "Database $DB_NAME already exists, skipping"
-              continue
-            fi
-          
-            echo "Deploying PostgreSQL for $SERVICE_NAME"
-          
-            SERVICE_UPPER=$(echo "$SERVICE_NAME" | tr '[:lower:]-' '[:upper:]_' | sed 's/SHOPIFAKE_//')
-            DB_PASSWORD_VAR="DB_PASSWORD_${SERVICE_UPPER}"
-            DB_PASSWORD="${!DB_PASSWORD_VAR}"
-          
-            helm install "$DB_NAME" bitnami/postgresql \
+          # Deploy single PostgreSQL 16 instance with all databases
+          if helm list -n $NAMESPACE | grep -q "^shopifake-postgres"; then
+            echo "PostgreSQL already exists, skipping installation"
+          else
+            echo "Deploying shared PostgreSQL 16 instance..."
+            helm install shopifake-postgres bitnami/postgresql \
+              --version 16.2.3 \
               --namespace $NAMESPACE \
-              --set auth.database="${SERVICE_NAME//-/_}_db" \
-              --set auth.username="${SERVICE_NAME//-/_}_user" \
-              --set auth.password="$DB_PASSWORD" \
-              --set primary.persistence.size=5Gi \
+              --set image.tag=16.6.0-debian-12-r0 \
+              --set auth.postgresPassword="$POSTGRES_ADMIN_PASSWORD" \
+              --set primary.persistence.size=20Gi \
+              --set primary.resources.requests.cpu=500m \
+              --set primary.resources.requests.memory=1Gi \
+              --set primary.resources.limits.cpu=2000m \
+              --set primary.resources.limits.memory=2Gi \
               --wait \
               --timeout 5m
+            echo "PostgreSQL deployed"
+          fi
           
-            echo "Database $DB_NAME deployed"
-          done < /tmp/services.txt
+          # Wait for PostgreSQL to be ready
+          echo "Waiting for PostgreSQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgresql \
+            -n $NAMESPACE --timeout=180s
+          
+          # Initialize databases, users and privileges
+          echo "Initializing databases..."
+          POSTGRES_POD=$(kubectl get pod -n $NAMESPACE -l app.kubernetes.io/name=postgresql -o jsonpath='{.items[0].metadata.name}')
+          
+          kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- bash -c "
+            PGPASSWORD='$POSTGRES_ADMIN_PASSWORD' psql -U postgres -v DB_PASSWORD_ACCESS='$DB_PASSWORD_ACCESS' \
+              -v DB_PASSWORD_AUDIT='$DB_PASSWORD_AUDIT' \
+              -v DB_PASSWORD_CATALOG='$DB_PASSWORD_CATALOG' \
+              -v DB_PASSWORD_CUSTOMERS='$DB_PASSWORD_CUSTOMERS' \
+              -v DB_PASSWORD_INVENTORY='$DB_PASSWORD_INVENTORY' \
+              -v DB_PASSWORD_ORDERS='$DB_PASSWORD_ORDERS' \
+              -v DB_PASSWORD_PRICING='$DB_PASSWORD_PRICING' \
+              -v DB_PASSWORD_SALES_DASHBOARD='$DB_PASSWORD_SALES_DASHBOARD' \
+              -v DB_PASSWORD_SITES='$DB_PASSWORD_SITES' \
+              -v DB_PASSWORD_CHATBOT='$DB_PASSWORD_CHATBOT' \
+              -v DB_PASSWORD_RECOMMENDER='$DB_PASSWORD_RECOMMENDER' \
+              -v DB_PASSWORD_AUTH_B2C='$DB_PASSWORD_AUTH_B2C' \
+              -v DB_PASSWORD_AUTH_B2E='$DB_PASSWORD_AUTH_B2E' \
+              -f /dev/stdin
+          " < scripts/init-databases.sql
+          
+          echo "Database initialization complete"
 
       - name: Create configmaps and secrets
         env:
