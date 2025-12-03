@@ -165,7 +165,7 @@ jobs:
               -v DB_PASSWORD_AUTH_B2C='$DB_PASSWORD_AUTH_B2C' \
               -v DB_PASSWORD_AUTH_B2E='$DB_PASSWORD_AUTH_B2E' \
               -f /dev/stdin
-          " < scripts/init-databases.sql
+          " < scripts/init-databases-cicd.sql
           
           echo "Database initialization complete"
 
