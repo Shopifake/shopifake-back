@@ -129,7 +129,6 @@ jobs:
             helm install shopifake-postgres bitnami/postgresql \
               --version 16.2.3 \
               --namespace $NAMESPACE \
-              --set image.tag=16.6.0-debian-12-r0 \
               --set auth.postgresPassword="$POSTGRES_ADMIN_PASSWORD" \
               --set primary.persistence.size=20Gi \
               --set primary.resources.requests.cpu=500m \
