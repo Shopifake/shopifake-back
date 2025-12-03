@@ -1,0 +1,25 @@
+meta {
+  name: Delete My Account
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{host}}/api/auth-b2e/users/me
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "reason": "No longer need the service"
+  }
+}
+
+docs {
+  Delete own account (RGPD compliance).
+  
+  Anonymizes user data instead of hard deletion.
+  Requires valid b2e_accessToken cookie (automatically sent).
+  Optionally provide a deletion reason for audit purposes.
+}

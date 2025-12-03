@@ -1,0 +1,27 @@
+meta {
+  name: Update My Profile
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{host}}/api/auth-b2c/customers/me
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "Alice",
+    "lastName": "Johnson",
+    "telephone": "+1987654321",
+    "address": "999 Pine St, Suburb, Country"
+  }
+}
+
+docs {
+  Update the current customer's own profile.
+  
+  Requires valid b2c_accessToken cookie (automatically sent).
+  Can update: firstName, lastName, telephone, address.
+}

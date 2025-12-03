@@ -1,0 +1,19 @@
+meta {
+  name: Refresh Token
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{host}}/api/auth-b2e/refresh
+  body: none
+  auth: none
+}
+
+docs {
+  Refresh access token using the refresh token cookie.
+  
+  Requires valid b2e_refreshToken cookie (automatically sent).
+  Returns new access token as httpOnly cookie.
+  Use this when access token expires (after 15 minutes).
+}

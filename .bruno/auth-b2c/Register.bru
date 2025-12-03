@@ -1,0 +1,38 @@
+meta {
+  name: Register
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host}}/api/auth-b2c/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "newcustomer@example.com",
+    "password": "securePassword456",
+    "firstName": "Alice",
+    "lastName": "Johnson",
+    "telephone": "+1234567890",
+    "address": "789 Elm St, Downtown, Country"
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body.customer) {
+    bru.setEnvVar("b2cCustomerId", res.body.customer.id);
+    bru.setEnvVar("b2cCustomerEmail", res.body.customer.email);
+  }
+}
+
+docs {
+  Register a new B2C customer account.
+  
+  Creates a new customer and returns customer information with authentication cookie:
+  - b2c_accessToken (24 hours validity)
+  
+  Stores customerId in environment for reference.
+}

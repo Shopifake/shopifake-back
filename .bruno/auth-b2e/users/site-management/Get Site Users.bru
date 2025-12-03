@@ -1,0 +1,22 @@
+meta {
+  name: Get Site Users
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host}}/api/auth-b2e/users/me/sites/:siteId/users
+  body: none
+  auth: none
+}
+
+params:path {
+  siteId: site-uuid-here
+}
+
+docs {
+  Get all users for a site you own.
+  
+  Only site owners can access this endpoint.
+  Requires valid b2e_accessToken cookie (automatically sent).
+}

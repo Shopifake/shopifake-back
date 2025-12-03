@@ -1,0 +1,27 @@
+meta {
+  name: Update My Profile
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{host}}/api/auth-b2e/users/me
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "John",
+    "lastName": "Doe",
+    "phone": "+1987654321",
+    "address": "456 Oak Ave, New City, Country"
+  }
+}
+
+docs {
+  Update the current user's own profile.
+  
+  Requires valid b2e_accessToken cookie (automatically sent).
+  Can update: firstName, lastName, phone, address.
+}

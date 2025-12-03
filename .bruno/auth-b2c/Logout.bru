@@ -1,0 +1,18 @@
+meta {
+  name: Logout
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{host}}/api/auth-b2c/logout
+  body: none
+  auth: none
+}
+
+docs {
+  Logout the current customer.
+  
+  Clears the authentication cookie (b2c_accessToken).
+  Cookie is automatically removed from subsequent requests.
+}

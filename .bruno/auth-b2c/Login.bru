@@ -1,0 +1,35 @@
+meta {
+  name: Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{host}}/api/auth-b2c/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "customer@example.com",
+    "password": "password123"
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.customer) {
+    bru.setEnvVar("b2cCustomerId", res.body.customer.id);
+    bru.setEnvVar("b2cCustomerEmail", res.body.customer.email);
+  }
+}
+
+docs {
+  Login endpoint for B2C (Business to Customer) authentication.
+  
+  Returns customer information and sets httpOnly cookie:
+  - b2c_accessToken (24 hours validity)
+  
+  The cookie is automatically sent with subsequent requests.
+  Stores customerId in environment for reference.
+}

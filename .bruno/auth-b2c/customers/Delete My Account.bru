@@ -1,0 +1,18 @@
+meta {
+  name: Delete My Account
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{host}}/api/auth-b2c/customers/me
+  body: none
+  auth: none
+}
+
+docs {
+  Delete own customer account.
+  
+  Permanently removes the customer account from database.
+  Requires valid b2c_accessToken cookie (automatically sent).
+}

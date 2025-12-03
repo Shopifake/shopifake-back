@@ -1,0 +1,31 @@
+meta {
+  name: Update User Role
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{host}}/api/auth-b2e/users/me/sites/:siteId/users
+  body: json
+  auth: none
+}
+
+params:path {
+  siteId: site-uuid-here
+}
+
+body:json {
+  {
+    "email": "user@example.com",
+    "role": "SM"
+  }
+}
+
+docs {
+  Change a user's role for your site.
+  
+  Role can be: CM (Content Manager) or SM (Site Manager).
+  Cannot change Owner role through this endpoint.
+  Only site owners can access this endpoint.
+  Requires valid b2e_accessToken cookie (automatically sent).
+}

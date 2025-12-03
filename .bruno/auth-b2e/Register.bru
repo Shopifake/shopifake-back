@@ -1,0 +1,39 @@
+meta {
+  name: Register
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host}}/api/auth-b2e/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "jane.smith@example.com",
+    "password": "securePassword456",
+    "firstName": "Jane",
+    "lastName": "Smith",
+    "phone": "+1234567890",
+    "address": "123 Main St, City, Country"
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body.user) {
+    bru.setEnvVar("b2eUserId", res.body.user.id);
+    bru.setEnvVar("b2eUserEmail", res.body.user.email);
+  }
+}
+
+docs {
+  Register a new B2E user account.
+  
+  Creates a new user and returns user information with authentication cookies:
+  - b2e_accessToken (15 minutes validity)
+  - b2e_refreshToken (7 days validity)
+  
+  Stores userId in environment for reference.
+}

@@ -1,0 +1,18 @@
+meta {
+  name: Get My Sites
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{host}}/api/auth-b2e/users/me/sites
+  body: none
+  auth: none
+}
+
+docs {
+  Get list of sites managed by the current user.
+  
+  Returns siteId and role for each site.
+  Requires valid b2e_accessToken cookie (automatically sent).
+}
