@@ -138,10 +138,10 @@ jobs:
               --namespace $NAMESPACE \
               --set auth.postgresPassword="$POSTGRES_ADMIN_PASSWORD" \
               --set primary.persistence.size=20Gi \
-              --set primary.resources.requests.cpu=500m \
-              --set primary.resources.requests.memory=1Gi \
-              --set primary.resources.limits.cpu=2000m \
-              --set primary.resources.limits.memory=2Gi \
+              --set primary.resources.requests.cpu=200m \
+              --set primary.resources.requests.memory=512Mi \
+              --set primary.resources.limits.cpu=1000m \
+              --set primary.resources.limits.memory=1Gi \
               --wait \
               --timeout 5m
             echo "PostgreSQL deployed"
@@ -156,7 +156,7 @@ jobs:
           echo "Initializing databases..."
           POSTGRES_POD=$(kubectl get pod -n $NAMESPACE -l app.kubernetes.io/name=postgresql -o jsonpath='{.items[0].metadata.name}')
           
-          # List of services and their passwords
+          # List of services and their passwords (chatbot excluded)
           declare -A SERVICES=(
             ["access"]="$DB_PASSWORD_ACCESS"
             ["audit"]="$DB_PASSWORD_AUDIT"
@@ -167,7 +167,6 @@ jobs:
             ["pricing"]="$DB_PASSWORD_PRICING"
             ["sales_dashboard"]="$DB_PASSWORD_SALES_DASHBOARD"
             ["sites"]="$DB_PASSWORD_SITES"
-            ["chatbot"]="$DB_PASSWORD_CHATBOT"
             ["recommender"]="$DB_PASSWORD_RECOMMENDER"
             ["auth_b2c"]="$DB_PASSWORD_AUTH_B2C"
             ["auth_b2e"]="$DB_PASSWORD_AUTH_B2E"
@@ -239,6 +238,12 @@ jobs:
             # Get submodule path to filter services
             SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
             
+            # Skip chatbot service
+            if [[ "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (explicitly excluded)"
+              continue
+            fi
+            
             # Handle services in services/ directory and auth services in infra/
             if [[ ! "$SUBMODULE_PATH" == services/* ]] && [[ ! "$SUBMODULE_PATH" == infra/shopifake-auth-* ]]; then
               echo "Skipping $SERVICE_NAME (not in services/ or auth service)"
@@ -293,6 +298,12 @@ jobs:
           while read -r SERVICE_NAME; do
             # Get submodule path to filter services
             SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Skip chatbot service
+            if [[ "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (explicitly excluded)"
+              continue
+            fi
             
             # Deploy services in services/ directory and auth services in infra/
             if [[ ! "$SUBMODULE_PATH" == services/* ]] && [[ ! "$SUBMODULE_PATH" == infra/shopifake-auth-* ]]; then

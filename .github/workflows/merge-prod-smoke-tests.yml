@@ -48,22 +48,38 @@ jobs:
         run: |
           echo "Testing gateway health endpoint..."
           
-          # Get gateway pod name
-          GATEWAY_POD=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=shopifake-gateway -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-          
-          if [ -z "$GATEWAY_POD" ]; then
-            echo "Warning: Gateway pod not found, skipping health check"
+          # Check if gateway service exists
+          if ! kubectl get svc shopifake-gateway -n $NAMESPACE &>/dev/null; then
+            echo "Warning: Gateway service not found, skipping health check"
             exit 0
           fi
           
-          # Test health endpoint via kubectl exec
-          HTTP_CODE=$(kubectl exec -n $NAMESPACE $GATEWAY_POD -- curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health 2>/dev/null || echo "000")
+          # Setup port-forward in background
+          echo "Setting up port-forward..."
+          kubectl port-forward -n $NAMESPACE svc/shopifake-gateway 8080:8080 &
+          PF_PID=$!
+          
+          # Ensure port-forward cleanup on exit
+          trap "kill $PF_PID 2>/dev/null || true; wait $PF_PID 2>/dev/null || true" EXIT
+          
+          # Wait for port-forward to be ready
+          sleep 5
+          
+          # Test health endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health 2>/dev/null || echo "000")
+          
+          # Cleanup port-forward immediately
+          kill $PF_PID 2>/dev/null || true
+          wait $PF_PID 2>/dev/null || true
           
           if [ "$HTTP_CODE" = "200" ]; then
             echo "Gateway health check passed (HTTP $HTTP_CODE)"
           else
             echo "Gateway health check failed (HTTP $HTTP_CODE)"
-            kubectl logs -n $NAMESPACE $GATEWAY_POD --tail=50
+            GATEWAY_POD=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=shopifake-gateway -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+            if [ -n "$GATEWAY_POD" ]; then
+              kubectl logs -n $NAMESPACE $GATEWAY_POD --tail=50
+            fi
             exit 1
           fi
 
@@ -75,14 +91,22 @@ jobs:
           FAILED=0
           
           for SERVICE in $SERVICES; do
-            POD=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=$SERVICE -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-            
-            if [ -z "$POD" ]; then
-              echo "Warning: $SERVICE pod not found, skipping"
+            # Check if service exists
+            if ! kubectl get svc $SERVICE -n $NAMESPACE &>/dev/null; then
+              echo "Warning: $SERVICE service not found, skipping"
               continue
             fi
             
-            HTTP_CODE=$(kubectl exec -n $NAMESPACE $POD -- curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health 2>/dev/null || echo "000")
+            # Use port-forward to test health
+            kubectl port-forward -n $NAMESPACE svc/$SERVICE 8081:8080 &
+            PF_PID=$!
+            sleep 3
+            
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/actuator/health 2>/dev/null || echo "000")
+            
+            # Cleanup port-forward
+            kill $PF_PID 2>/dev/null || true
+            wait $PF_PID 2>/dev/null || true
             
             if [ "$HTTP_CODE" = "200" ]; then
               echo "$SERVICE: OK (HTTP $HTTP_CODE)"
