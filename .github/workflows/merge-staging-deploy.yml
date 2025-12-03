@@ -71,6 +71,10 @@ jobs:
               --set auth.enabled=false \
               --set master.persistence.size=1Gi \
               --set replica.replicaCount=0 \
+              --set master.resources.requests.cpu=25m \
+              --set master.resources.requests.memory=32Mi \
+              --set master.resources.limits.cpu=100m \
+              --set master.resources.limits.memory=64Mi \
               --wait \
               --timeout 3m
             echo "Redis deployed"
@@ -130,10 +134,10 @@ jobs:
               --namespace $NAMESPACE \
               --set auth.postgresPassword="$POSTGRES_ADMIN_PASSWORD" \
               --set primary.persistence.size=10Gi \
-              --set primary.resources.requests.cpu=250m \
-              --set primary.resources.requests.memory=512Mi \
-              --set primary.resources.limits.cpu=1000m \
-              --set primary.resources.limits.memory=1Gi \
+              --set primary.resources.requests.cpu=100m \
+              --set primary.resources.requests.memory=256Mi \
+              --set primary.resources.limits.cpu=500m \
+              --set primary.resources.limits.memory=512Mi \
               --wait \
               --timeout 5m
             echo "PostgreSQL deployed"

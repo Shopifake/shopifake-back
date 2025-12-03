@@ -71,6 +71,14 @@ jobs:
               --set auth.enabled=false \
               --set master.persistence.size=2Gi \
               --set replica.replicaCount=1 \
+              --set master.resources.requests.cpu=50m \
+              --set master.resources.requests.memory=64Mi \
+              --set master.resources.limits.cpu=200m \
+              --set master.resources.limits.memory=128Mi \
+              --set replica.resources.requests.cpu=50m \
+              --set replica.resources.requests.memory=64Mi \
+              --set replica.resources.limits.cpu=200m \
+              --set replica.resources.limits.memory=128Mi \
               --wait \
               --timeout 5m
             echo "Redis deployed"
