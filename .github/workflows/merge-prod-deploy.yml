@@ -148,14 +148,6 @@ jobs:
           echo "Initializing databases..."
           POSTGRES_POD=$(kubectl get pod -n $NAMESPACE -l app.kubernetes.io/name=postgresql -o jsonpath='{.items[0].metadata.name}')
           
-          # Helper function to execute SQL
-          exec_sql() {
-            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
-              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
-              psql -U postgres -c \"$1\"
-            "
-          }
-          
           # List of services and their passwords
           declare -A SERVICES=(
             ["access"]="$DB_PASSWORD_ACCESS"
@@ -181,14 +173,24 @@ jobs:
             
             echo "Setting up $service..."
             
-            # Create database (idempotent)
-            exec_sql "SELECT 'CREATE DATABASE $db_name' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$db_name')\\gexec" || true
+            # Create database using createdb command
+            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
+              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
+              createdb -U postgres $db_name 2>/dev/null || echo 'Database $db_name already exists'
+            "
             
-            # Create user (idempotent)
-            exec_sql "DO \\\$\\\$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = '$user_name') THEN CREATE USER $user_name WITH PASSWORD '$password'; END IF; END \\\$\\\$;" || true
+            # Create user with password
+            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
+              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
+              psql -U postgres -tc \"SELECT 1 FROM pg_user WHERE usename = '$user_name'\" | grep -q 1 || \
+              psql -U postgres -c \"CREATE USER $user_name WITH PASSWORD '$password'\"
+            "
             
             # Grant privileges
-            exec_sql "GRANT ALL PRIVILEGES ON DATABASE $db_name TO $user_name;" || true
+            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
+              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
+              psql -U postgres -c \"GRANT ALL PRIVILEGES ON DATABASE $db_name TO $user_name\"
+            "
           done
           
           echo "Database initialization complete"
