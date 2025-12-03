@@ -173,23 +173,24 @@ jobs:
             
             echo "Setting up $service..."
             
-            # Create database using createdb command
-            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
-              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
-              createdb -U postgres $db_name 2>/dev/null || echo 'Database $db_name already exists'
-            "
-            
-            # Create user with password
+            # Create user with password first
             kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
               export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
               psql -U postgres -tc \"SELECT 1 FROM pg_user WHERE usename = '$user_name'\" | grep -q 1 || \
               psql -U postgres -c \"CREATE USER $user_name WITH PASSWORD '$password'\"
             "
             
-            # Grant privileges
+            # Create database with user as owner
             kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
               export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
-              psql -U postgres -c \"GRANT ALL PRIVILEGES ON DATABASE $db_name TO $user_name\"
+              createdb -U postgres -O $user_name $db_name 2>/dev/null || \
+              psql -U postgres -c \"ALTER DATABASE $db_name OWNER TO $user_name\"
+            "
+            
+            # Grant schema privileges (for PostgreSQL 15+)
+            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
+              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
+              psql -U postgres -d $db_name -c \"GRANT ALL ON SCHEMA public TO $user_name\"
             "
           done
           
