@@ -264,6 +264,9 @@ jobs:
           SHOPIFAKE_CHATBOT_SECRETS: ${{ secrets.SHOPIFAKE_CHATBOT_SECRETS }}
           SHOPIFAKE_AUTH_B2C_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2C_SECRETS }}
           SHOPIFAKE_AUTH_B2E_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2E_SECRETS }}
+          # Database passwords for building DATABASE_URL
+          DB_PASSWORD_AUTH_B2C: ${{ secrets.DB_PASSWORD_AUTH_B2C }}
+          DB_PASSWORD_AUTH_B2E: ${{ secrets.DB_PASSWORD_AUTH_B2E }}
         run: |
           while read -r SERVICE_NAME; do
             # Get submodule path to filter services
