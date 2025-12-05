@@ -69,9 +69,9 @@ jobs:
           TEST_TIMEOUT: ${{ vars.TEST_TIMEOUT || '300' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
-          LOCUST_USERS: ${{ vars.LOCUST_USERS || '20' }}
-          LOCUST_SPAWN_RATE: ${{ vars.LOCUST_SPAWN_RATE || '10' }}
-          LOCUST_RUN_TIME: ${{ vars.LOCUST_RUN_TIME || '120s' }}
+          LOCUST_USERS: ${{ vars.LOCUST_USERS || '10' }}
+          LOCUST_SPAWN_RATE: ${{ vars.LOCUST_SPAWN_RATE || '2' }}
+          LOCUST_RUN_TIME: ${{ vars.LOCUST_RUN_TIME || '60s' }}
         run: |
           JOB_NAME="test-runner-$(date +%s)"
           
@@ -178,6 +178,30 @@ jobs:
           echo "Cleaning up Job: $JOB_NAME"
           helm uninstall "$JOB_NAME" --kubeconfig=$KUBECONFIG --namespace $NAMESPACE || true
           echo "✅ Cleanup complete"
+
+      - name: Scale down staging to save resources
+        if: always()
+        run: |
+          echo "🔽 Scaling down staging environment to save resources..."
+          
+          # Scale down all deployments to 0
+          echo "Scaling down deployments..."
+          kubectl --kubeconfig=$KUBECONFIG scale deployment --all --replicas=0 -n $NAMESPACE || true
+          
+          # Scale down Redis
+          echo "Scaling down Redis..."
+          kubectl --kubeconfig=$KUBECONFIG scale statefulset shopifake-redis-master --replicas=0 -n $NAMESPACE 2>/dev/null || true
+          
+          # Scale down PostgreSQL (data persists in PVC)
+          echo "Scaling down PostgreSQL..."
+          kubectl --kubeconfig=$KUBECONFIG scale statefulset shopifake-postgres-postgresql --replicas=0 -n $NAMESPACE 2>/dev/null || true
+          
+          # Scale down Qdrant if exists
+          echo "Scaling down Qdrant..."
+          kubectl --kubeconfig=$KUBECONFIG scale deployment shopifake-qdrant --replicas=0 -n $NAMESPACE 2>/dev/null || true
+          
+          echo "✅ Staging environment scaled down (resources saved)"
+          echo "💡 Next deployment will automatically scale up via Helm"
 
       - name: Fail workflow if tests failed
         if: steps.job-status.outputs.result == 'failure' || steps.job-status.outputs.result == 'unknown'

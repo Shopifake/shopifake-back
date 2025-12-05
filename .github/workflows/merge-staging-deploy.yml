@@ -79,7 +79,20 @@ jobs:
               --timeout 3m
             echo "Redis deployed"
           else
-            echo "Redis already exists, skipping"
+            echo "Redis already exists, checking if scaled down..."
+            
+            # Check if Redis master is scaled down
+            REPLICAS=$(kubectl get statefulset shopifake-redis-master -n $NAMESPACE -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+            if [ "$REPLICAS" = "0" ]; then
+              echo "Redis is scaled down, scaling up to 1 replica..."
+              kubectl scale statefulset shopifake-redis-master --replicas=1 -n $NAMESPACE
+              
+              # Wait for Redis to be ready
+              echo "Waiting for Redis to be ready..."
+              kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=redis -n $NAMESPACE --timeout=60s || true
+            else
+              echo "Redis already running with $REPLICAS replica(s)"
+            fi
           fi
           
           # Deploy Qdrant for recommender service (vector database)
@@ -105,7 +118,20 @@ jobs:
               echo "Recommender service not in lock file, skipping Qdrant"
             fi
           else
-            echo "Qdrant already exists, skipping"
+            echo "Qdrant already exists, checking if scaled down..."
+            
+            # Check if Qdrant is scaled down
+            REPLICAS=$(kubectl get deployment shopifake-qdrant -n $NAMESPACE -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+            if [ "$REPLICAS" = "0" ]; then
+              echo "Qdrant is scaled down, scaling up to 1 replica..."
+              kubectl scale deployment shopifake-qdrant --replicas=1 -n $NAMESPACE
+              
+              # Wait for Qdrant to be ready
+              kubectl wait --for=condition=ready pod -l app=shopifake-qdrant \
+                -n $NAMESPACE --timeout=120s || true
+            else
+              echo "Qdrant already running with $REPLICAS replica(s)"
+            fi
           fi
 
       - name: Deploy shared PostgreSQL database
@@ -128,6 +154,15 @@ jobs:
           # Deploy single PostgreSQL 16 instance with all databases
           if helm list -n $NAMESPACE | grep -q "^shopifake-postgres"; then
             echo "PostgreSQL already exists, skipping installation"
+            
+            # Check if PostgreSQL is scaled down (happens after staging tests)
+            REPLICAS=$(kubectl get statefulset shopifake-postgres-postgresql -n $NAMESPACE -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+            if [ "$REPLICAS" = "0" ]; then
+              echo "PostgreSQL is scaled down, scaling up to 1 replica..."
+              kubectl scale statefulset shopifake-postgres-postgresql --replicas=1 -n $NAMESPACE
+            else
+              echo "PostgreSQL already running with $REPLICAS replica(s)"
+            fi
           else
             echo "Deploying shared PostgreSQL instance..."
             helm install shopifake-postgres bitnami/postgresql \
@@ -415,10 +450,64 @@ jobs:
           kubectl wait --for=condition=available deployment --all \
             --namespace $NAMESPACE \
             --timeout=10m
-          echo "All deployments are ready!"
+          echo "All deployments are available!"
+
+      - name: Verify all pods are running
+        run: |
+          echo "Verifying all pods are in Running state..."
+          
+          # Wait up to 5 minutes for all pods to be running
+          MAX_ATTEMPTS=60
+          SLEEP_TIME=5
+          ATTEMPT=0
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Check attempt $ATTEMPT/$MAX_ATTEMPTS..."
+            
+            # Get all pods that are NOT in Running state (excluding Completed jobs)
+            NOT_RUNNING=$(kubectl get pods -n $NAMESPACE --field-selector=status.phase!=Running,status.phase!=Succeeded -o json | jq -r '.items | length')
+            
+            if [ "$NOT_RUNNING" -eq 0 ]; then
+              echo "✅ All pods are running!"
+              kubectl get pods -n $NAMESPACE -o wide
+              exit 0
+            fi
+            
+            echo "⚠️  Found $NOT_RUNNING pod(s) not running yet:"
+            kubectl get pods -n $NAMESPACE --field-selector=status.phase!=Running,status.phase!=Succeeded -o wide
+            
+            # Check for CrashLoopBackOff or ImagePullBackOff (fatal errors)
+            CRASH_PODS=$(kubectl get pods -n $NAMESPACE -o json | jq -r '.items[] | select(.status.containerStatuses != null) | select(.status.containerStatuses[].state.waiting.reason | select(. == "CrashLoopBackOff" or . == "ImagePullBackOff")) | .metadata.name')
+            
+            if [ ! -z "$CRASH_PODS" ]; then
+              echo "❌ ERROR: Pods in error state detected:"
+              echo "$CRASH_PODS"
+              echo ""
+              echo "Pod details and logs:"
+              for pod in $CRASH_PODS; do
+                echo "=== $pod ==="
+                kubectl describe pod -n $NAMESPACE $pod | tail -20
+                echo "Recent logs:"
+                kubectl logs -n $NAMESPACE $pod --tail=30 || true
+                echo ""
+              done
+              exit 1
+            fi
+            
+            echo "Waiting ${SLEEP_TIME}s before next check..."
+            sleep $SLEEP_TIME
+          done
+          
+          echo "❌ ERROR: Timeout waiting for pods to be ready"
+          kubectl get pods -n $NAMESPACE -o wide
+          exit 1
 
       - name: Verify deployment
         if: always()
         run: |
-          echo "Deployment status:"
+          echo "Final deployment status:"
           kubectl get pods -n $NAMESPACE -o wide
+          echo ""
+          echo "Recent events:"
+          kubectl get events -n $NAMESPACE --sort-by='.lastTimestamp' | tail -20
