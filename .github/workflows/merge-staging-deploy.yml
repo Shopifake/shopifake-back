@@ -369,6 +369,41 @@ jobs:
             echo "Service $SERVICE_NAME deployed (waiting for health check)"
           done < /tmp/services.txt
 
+      - name: Verify database migrations completed
+        run: |
+          echo "Checking migration jobs status..."
+          
+          # Check for auth services migration jobs
+          for SERVICE_NAME in shopifake-auth-b2e shopifake-auth-b2c; do
+            # Find the latest migration job for this service
+            MIGRATION_JOB=$(kubectl get jobs -n $NAMESPACE -l app.kubernetes.io/name=$SERVICE_NAME,app.kubernetes.io/component=migration --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo "")
+            
+            if [ -z "$MIGRATION_JOB" ]; then
+              echo "ℹ️  No migration job found for $SERVICE_NAME (may not have been deployed)"
+              continue
+            fi
+            
+            echo "Found migration job: $MIGRATION_JOB"
+            
+            # Wait for the job to complete (max 2 minutes)
+            if kubectl wait --for=condition=complete job/$MIGRATION_JOB -n $NAMESPACE --timeout=120s 2>/dev/null; then
+              echo "✅ Migration completed successfully for $SERVICE_NAME"
+            else
+              # Check if job failed
+              FAILED=$(kubectl get job $MIGRATION_JOB -n $NAMESPACE -o jsonpath='{.status.failed}' 2>/dev/null || echo "0")
+              if [ "$FAILED" != "0" ]; then
+                echo "❌ ERROR: Migration job failed for $SERVICE_NAME"
+                echo "Job logs:"
+                kubectl logs -n $NAMESPACE job/$MIGRATION_JOB --tail=50
+                exit 1
+              else
+                echo "⚠️  Migration job status unclear for $SERVICE_NAME"
+              fi
+            fi
+          done
+          
+          echo "All database migrations verified"
+
       - name: Create gateway configmap
         env:
           CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
