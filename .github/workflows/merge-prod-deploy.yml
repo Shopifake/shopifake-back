@@ -233,6 +233,9 @@ jobs:
           SHOPIFAKE_CHATBOT_SECRETS: ${{ secrets.SHOPIFAKE_CHATBOT_SECRETS }}
           SHOPIFAKE_AUTH_B2C_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2C_SECRETS }}
           SHOPIFAKE_AUTH_B2E_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2E_SECRETS }}
+          # Database passwords for building DATABASE_URL
+          DB_PASSWORD_AUTH_B2C: ${{ secrets.DB_PASSWORD_AUTH_B2C }}
+          DB_PASSWORD_AUTH_B2E: ${{ secrets.DB_PASSWORD_AUTH_B2E }}
         run: |
           while read -r SERVICE_NAME; do
             # Get submodule path to filter services
@@ -283,6 +286,16 @@ jobs:
             
             # Create Secret
             echo "$SECRETS_CONTENT" > /tmp/secret-${SERVICE_NAME}.env
+            
+            # Add DATABASE_URL for auth services
+            if [[ "$SERVICE_NAME" == "shopifake-auth-b2e" ]]; then
+              echo "DATABASE_URL=postgresql://shopifake_auth_b2e_user:$DB_PASSWORD_AUTH_B2E@shopifake-postgres-postgresql:5432/shopifake_auth_b2e_db" >> /tmp/secret-${SERVICE_NAME}.env
+              echo "Added DATABASE_URL to auth-b2e secret"
+            elif [[ "$SERVICE_NAME" == "shopifake-auth-b2c" ]]; then
+              echo "DATABASE_URL=postgresql://shopifake_auth_b2c_user:$DB_PASSWORD_AUTH_B2C@shopifake-postgres-postgresql:5432/shopifake_auth_b2c_db" >> /tmp/secret-${SERVICE_NAME}.env
+              echo "Added DATABASE_URL to auth-b2c secret"
+            fi
+            
             kubectl create secret generic "${SERVICE_NAME}-secret" \
               --from-env-file=/tmp/secret-${SERVICE_NAME}.env \
               --namespace $NAMESPACE \
