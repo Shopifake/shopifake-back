@@ -44,9 +44,47 @@ jobs:
           echo "All pods are running"
           kubectl get pods -n $NAMESPACE
 
-      - name: Check gateway health
+      - name: Check public gateway health
         run: |
-          echo "Testing gateway health endpoint..."
+          echo "Testing public gateway health endpoint..."
+          
+          # Test public health endpoint
+          MAX_ATTEMPTS=5
+          ATTEMPT=0
+          SUCCESS=false
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS..."
+            
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://shopifake.com/api/actuator/health/ 2>/dev/null || echo "000")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Public gateway health check passed (HTTP $HTTP_CODE)"
+              SUCCESS=true
+              break
+            else
+              echo "⚠️  Attempt $ATTEMPT failed (HTTP $HTTP_CODE)"
+              if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+                echo "Waiting 10 seconds before retry..."
+                sleep 10
+              fi
+            fi
+          done
+          
+          if [ "$SUCCESS" = "false" ]; then
+            echo "❌ Public gateway health check failed after $MAX_ATTEMPTS attempts"
+            echo "Getting gateway pod logs..."
+            GATEWAY_POD=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=shopifake-gateway -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+            if [ -n "$GATEWAY_POD" ]; then
+              kubectl logs -n $NAMESPACE $GATEWAY_POD --tail=50
+            fi
+            exit 1
+          fi
+
+      - name: Check gateway health (internal)
+        run: |
+          echo "Testing internal gateway health endpoint..."
           
           # Check if gateway service exists
           if ! kubectl get svc shopifake-gateway -n $NAMESPACE &>/dev/null; then
@@ -73,9 +111,9 @@ jobs:
           wait $PF_PID 2>/dev/null || true
           
           if [ "$HTTP_CODE" = "200" ]; then
-            echo "Gateway health check passed (HTTP $HTTP_CODE)"
+            echo "✅ Internal gateway health check passed (HTTP $HTTP_CODE)"
           else
-            echo "Gateway health check failed (HTTP $HTTP_CODE)"
+            echo "❌ Internal gateway health check failed (HTTP $HTTP_CODE)"
             GATEWAY_POD=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=shopifake-gateway -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
             if [ -n "$GATEWAY_POD" ]; then
               kubectl logs -n $NAMESPACE $GATEWAY_POD --tail=50
