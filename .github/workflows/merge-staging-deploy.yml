@@ -71,11 +71,28 @@ jobs:
               --set auth.enabled=false \
               --set master.persistence.size=1Gi \
               --set replica.replicaCount=0 \
+              --set master.resources.requests.cpu=25m \
+              --set master.resources.requests.memory=32Mi \
+              --set master.resources.limits.cpu=100m \
+              --set master.resources.limits.memory=64Mi \
               --wait \
               --timeout 3m
             echo "Redis deployed"
           else
-            echo "Redis already exists, skipping"
+            echo "Redis already exists, checking if scaled down..."
+            
+            # Check if Redis master is scaled down
+            REPLICAS=$(kubectl get statefulset shopifake-redis-master -n $NAMESPACE -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+            if [ "$REPLICAS" = "0" ]; then
+              echo "Redis is scaled down, scaling up to 1 replica..."
+              kubectl scale statefulset shopifake-redis-master --replicas=1 -n $NAMESPACE
+              
+              # Wait for Redis to be ready
+              echo "Waiting for Redis to be ready..."
+              kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=redis -n $NAMESPACE --timeout=60s || true
+            else
+              echo "Redis already running with $REPLICAS replica(s)"
+            fi
           fi
           
           # Deploy Qdrant for recommender service (vector database)
@@ -101,11 +118,25 @@ jobs:
               echo "Recommender service not in lock file, skipping Qdrant"
             fi
           else
-            echo "Qdrant already exists, skipping"
+            echo "Qdrant already exists, checking if scaled down..."
+            
+            # Check if Qdrant is scaled down
+            REPLICAS=$(kubectl get deployment shopifake-qdrant -n $NAMESPACE -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+            if [ "$REPLICAS" = "0" ]; then
+              echo "Qdrant is scaled down, scaling up to 1 replica..."
+              kubectl scale deployment shopifake-qdrant --replicas=1 -n $NAMESPACE
+              
+              # Wait for Qdrant to be ready
+              kubectl wait --for=condition=ready pod -l app=shopifake-qdrant \
+                -n $NAMESPACE --timeout=120s || true
+            else
+              echo "Qdrant already running with $REPLICAS replica(s)"
+            fi
           fi
 
-      - name: Deploy databases
+      - name: Deploy shared PostgreSQL database
         env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
           DB_PASSWORD_ACCESS: ${{ secrets.DB_PASSWORD_ACCESS }}
           DB_PASSWORD_AUDIT: ${{ secrets.DB_PASSWORD_AUDIT }}
           DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
@@ -115,47 +146,93 @@ jobs:
           DB_PASSWORD_PRICING: ${{ secrets.DB_PASSWORD_PRICING }}
           DB_PASSWORD_SALES_DASHBOARD: ${{ secrets.DB_PASSWORD_SALES_DASHBOARD }}
           DB_PASSWORD_SITES: ${{ secrets.DB_PASSWORD_SITES }}
+          DB_PASSWORD_CHATBOT: ${{ secrets.DB_PASSWORD_CHATBOT }}
+          DB_PASSWORD_RECOMMENDER: ${{ secrets.DB_PASSWORD_RECOMMENDER }}
+          DB_PASSWORD_AUTH_B2C: ${{ secrets.DB_PASSWORD_AUTH_B2C }}
+          DB_PASSWORD_AUTH_B2E: ${{ secrets.DB_PASSWORD_AUTH_B2E }}
         run: |
-          while read -r SERVICE_NAME; do
-            # Get submodule path to filter services
-            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+          # Deploy single PostgreSQL 16 instance with all databases
+          if helm list -n $NAMESPACE | grep -q "^shopifake-postgres"; then
+            echo "PostgreSQL already exists, skipping installation"
             
-            # Only deploy databases for Java services in services/ directory
-            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
-              echo "Skipping $SERVICE_NAME (not in services/)"
-              continue
+            # Check if PostgreSQL is scaled down (happens after staging tests)
+            REPLICAS=$(kubectl get statefulset shopifake-postgres-postgresql -n $NAMESPACE -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+            if [ "$REPLICAS" = "0" ]; then
+              echo "PostgreSQL is scaled down, scaling up to 1 replica..."
+              kubectl scale statefulset shopifake-postgres-postgresql --replicas=1 -n $NAMESPACE
+            else
+              echo "PostgreSQL already running with $REPLICAS replica(s)"
             fi
-            
-            # Exclude Python services
-            if [[ "$SERVICE_NAME" == "shopifake-recommender" || "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
-              echo "Skipping $SERVICE_NAME (Python service)"
-              continue
-            fi
-          
-            DB_NAME="${SERVICE_NAME}-db"
-          
-            if helm list -n $NAMESPACE | grep -q "^$DB_NAME"; then
-              echo "Database $DB_NAME already exists, skipping"
-              continue
-            fi
-          
-            echo "Deploying PostgreSQL for $SERVICE_NAME"
-          
-            SERVICE_UPPER=$(echo "$SERVICE_NAME" | tr '[:lower:]-' '[:upper:]_' | sed 's/SHOPIFAKE_//')
-            DB_PASSWORD_VAR="DB_PASSWORD_${SERVICE_UPPER}"
-            DB_PASSWORD="${!DB_PASSWORD_VAR}"
-          
-            helm install "$DB_NAME" bitnami/postgresql \
+          else
+            echo "Deploying shared PostgreSQL instance..."
+            helm install shopifake-postgres bitnami/postgresql \
               --namespace $NAMESPACE \
-              --set auth.database="${SERVICE_NAME//-/_}_db" \
-              --set auth.username="${SERVICE_NAME//-/_}_user" \
-              --set auth.password="$DB_PASSWORD" \
-              --set primary.persistence.size=1Gi \
+              --set auth.postgresPassword="$POSTGRES_ADMIN_PASSWORD" \
+              --set primary.persistence.size=10Gi \
+              --set primary.resources.requests.cpu=100m \
+              --set primary.resources.requests.memory=128Mi \
+              --set primary.resources.limits.cpu=500m \
+              --set primary.resources.limits.memory=256Mi \
               --wait \
               --timeout 5m
+            echo "PostgreSQL deployed"
+          fi
           
-            echo "Database $DB_NAME deployed"
-          done < /tmp/services.txt
+          # Wait for PostgreSQL to be ready
+          echo "Waiting for PostgreSQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgresql \
+            -n $NAMESPACE --timeout=180s
+          
+          # Initialize databases, users and privileges
+          echo "Initializing databases..."
+          POSTGRES_POD=$(kubectl get pod -n $NAMESPACE -l app.kubernetes.io/name=postgresql -o jsonpath='{.items[0].metadata.name}')
+          
+          # List of services and their passwords (chatbot excluded)
+          declare -A SERVICES=(
+            ["access"]="$DB_PASSWORD_ACCESS"
+            ["audit"]="$DB_PASSWORD_AUDIT"
+            ["catalog"]="$DB_PASSWORD_CATALOG"
+            ["customers"]="$DB_PASSWORD_CUSTOMERS"
+            ["inventory"]="$DB_PASSWORD_INVENTORY"
+            ["orders"]="$DB_PASSWORD_ORDERS"
+            ["pricing"]="$DB_PASSWORD_PRICING"
+            ["sales_dashboard"]="$DB_PASSWORD_SALES_DASHBOARD"
+            ["sites"]="$DB_PASSWORD_SITES"
+            ["recommender"]="$DB_PASSWORD_RECOMMENDER"
+            ["auth_b2c"]="$DB_PASSWORD_AUTH_B2C"
+            ["auth_b2e"]="$DB_PASSWORD_AUTH_B2E"
+          )
+          
+          # Create databases and users
+          for service in "${!SERVICES[@]}"; do
+            db_name="shopifake_${service}_db"
+            user_name="shopifake_${service}_user"
+            password="${SERVICES[$service]}"
+            
+            echo "Setting up $service..."
+            
+            # Create user with password first
+            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
+              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
+              psql -U postgres -tc \"SELECT 1 FROM pg_user WHERE usename = '$user_name'\" | grep -q 1 || \
+              psql -U postgres -c \"CREATE USER $user_name WITH PASSWORD '$password'\"
+            "
+            
+            # Create database with user as owner
+            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
+              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
+              createdb -U postgres -O $user_name $db_name 2>/dev/null || \
+              psql -U postgres -c \"ALTER DATABASE $db_name OWNER TO $user_name\"
+            "
+            
+            # Grant schema privileges (for PostgreSQL 15+)
+            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
+              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
+              psql -U postgres -d $db_name -c \"GRANT ALL ON SCHEMA public TO $user_name\"
+            "
+          done
+          
+          echo "Database initialization complete"
 
       - name: Create configmaps and secrets
         env:
@@ -171,6 +248,8 @@ jobs:
           SHOPIFAKE_SITES_CONFIGMAP: ${{ vars.SHOPIFAKE_SITES_CONFIGMAP }}
           SHOPIFAKE_RECOMMENDER_CONFIGMAP: ${{ vars.SHOPIFAKE_RECOMMENDER_CONFIGMAP }}
           SHOPIFAKE_CHATBOT_CONFIGMAP: ${{ vars.SHOPIFAKE_CHATBOT_CONFIGMAP }}
+          SHOPIFAKE_AUTH_B2C_CONFIGMAP: ${{ vars.SHOPIFAKE_AUTH_B2C_CONFIGMAP }}
+          SHOPIFAKE_AUTH_B2E_CONFIGMAP: ${{ vars.SHOPIFAKE_AUTH_B2E_CONFIGMAP }}
           # Secrets
           SHOPIFAKE_ACCESS_SECRETS: ${{ secrets.SHOPIFAKE_ACCESS_SECRETS }}
           SHOPIFAKE_AUDIT_SECRETS: ${{ secrets.SHOPIFAKE_AUDIT_SECRETS }}
@@ -183,25 +262,25 @@ jobs:
           SHOPIFAKE_SITES_SECRETS: ${{ secrets.SHOPIFAKE_SITES_SECRETS }}
           SHOPIFAKE_RECOMMENDER_SECRETS: ${{ secrets.SHOPIFAKE_RECOMMENDER_SECRETS }}
           SHOPIFAKE_CHATBOT_SECRETS: ${{ secrets.SHOPIFAKE_CHATBOT_SECRETS }}
-          # TODO: Add auth services when ready
-          # SHOPIFAKE_AUTH_B2C_CONFIGMAP: ${{ vars.SHOPIFAKE_AUTH_B2C_CONFIGMAP }}
-          # SHOPIFAKE_AUTH_B2C_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2C_SECRETS }}
-          # SHOPIFAKE_AUTH_B2E_CONFIGMAP: ${{ vars.SHOPIFAKE_AUTH_B2E_CONFIGMAP }}
-          # SHOPIFAKE_AUTH_B2E_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2E_SECRETS }}
+          SHOPIFAKE_AUTH_B2C_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2C_SECRETS }}
+          SHOPIFAKE_AUTH_B2E_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2E_SECRETS }}
+          # Database passwords for building DATABASE_URL
+          DB_PASSWORD_AUTH_B2C: ${{ secrets.DB_PASSWORD_AUTH_B2C }}
+          DB_PASSWORD_AUTH_B2E: ${{ secrets.DB_PASSWORD_AUTH_B2E }}
         run: |
           while read -r SERVICE_NAME; do
             # Get submodule path to filter services
             SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
             
-            # Only handle services in services/ directory (skip gateway)
-            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
-              echo "Skipping $SERVICE_NAME (not in services/)"
+            # Skip chatbot service
+            if [[ "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (explicitly excluded)"
               continue
             fi
             
-            # TODO: Skip auth services for now (will be handled later)
-            if [[ "$SERVICE_NAME" == "shopifake-auth-b2c" || "$SERVICE_NAME" == "shopifake-auth-b2e" ]]; then
-              echo "Skipping $SERVICE_NAME (auth service - TODO: implement later)"
+            # Handle services in services/ directory and auth services in infra/
+            if [[ ! "$SUBMODULE_PATH" == services/* ]] && [[ ! "$SUBMODULE_PATH" == infra/shopifake-auth-* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/ or auth service)"
               continue
             fi
             
@@ -254,9 +333,15 @@ jobs:
             # Get submodule path to filter services
             SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
             
-            # Only deploy services in services/ directory (skip gateway/auth)
-            if [[ ! "$SUBMODULE_PATH" == services/* ]]; then
-              echo "Skipping $SERVICE_NAME (not in services/)"
+            # Skip chatbot service
+            if [[ "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (explicitly excluded)"
+              continue
+            fi
+            
+            # Deploy services in services/ directory and auth services in infra/
+            if [[ ! "$SUBMODULE_PATH" == services/* ]] && [[ ! "$SUBMODULE_PATH" == infra/shopifake-auth-* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/ or auth service)"
               continue
             fi
           
@@ -287,6 +372,41 @@ jobs:
             echo "Service $SERVICE_NAME deployed (waiting for health check)"
           done < /tmp/services.txt
 
+      - name: Verify database migrations completed
+        run: |
+          echo "Checking migration jobs status..."
+          
+          # Check for auth services migration jobs
+          for SERVICE_NAME in shopifake-auth-b2e shopifake-auth-b2c; do
+            # Find the latest migration job for this service
+            MIGRATION_JOB=$(kubectl get jobs -n $NAMESPACE -l app.kubernetes.io/name=$SERVICE_NAME,app.kubernetes.io/component=migration --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo "")
+            
+            if [ -z "$MIGRATION_JOB" ]; then
+              echo "ℹ️  No migration job found for $SERVICE_NAME (may not have been deployed)"
+              continue
+            fi
+            
+            echo "Found migration job: $MIGRATION_JOB"
+            
+            # Wait for the job to complete (max 2 minutes)
+            if kubectl wait --for=condition=complete job/$MIGRATION_JOB -n $NAMESPACE --timeout=120s 2>/dev/null; then
+              echo "✅ Migration completed successfully for $SERVICE_NAME"
+            else
+              # Check if job failed
+              FAILED=$(kubectl get job $MIGRATION_JOB -n $NAMESPACE -o jsonpath='{.status.failed}' 2>/dev/null || echo "0")
+              if [ "$FAILED" != "0" ]; then
+                echo "❌ ERROR: Migration job failed for $SERVICE_NAME"
+                echo "Job logs:"
+                kubectl logs -n $NAMESPACE job/$MIGRATION_JOB --tail=50
+                exit 1
+              else
+                echo "⚠️  Migration job status unclear for $SERVICE_NAME"
+              fi
+            fi
+          done
+          
+          echo "All database migrations verified"
+
       - name: Create gateway configmap
         env:
           CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
@@ -309,7 +429,7 @@ jobs:
             --from-literal=SERVICE_SITES_URL=http://shopifake-sites:8080 \
             --from-literal=SERVICE_CHATBOT_URL=http://shopifake-chatbot:8000 \
             --from-literal=SERVICE_AUTH_B2C_URL=http://shopifake-auth-b2c:3000 \
-            --from-literal=SERVICE_AUTH_B2E_URL=http://shopifake-auth-b2e:3001 \
+            --from-literal=SERVICE_AUTH_B2E_URL=http://shopifake-auth-b2e:3000 \
             --namespace $NAMESPACE \
             --dry-run=client -o yaml | kubectl apply -f -
         
@@ -368,10 +488,64 @@ jobs:
           kubectl wait --for=condition=available deployment --all \
             --namespace $NAMESPACE \
             --timeout=10m
-          echo "All deployments are ready!"
+          echo "All deployments are available!"
+
+      - name: Verify all pods are running
+        run: |
+          echo "Verifying all pods are in Running state..."
+          
+          # Wait up to 5 minutes for all pods to be running
+          MAX_ATTEMPTS=60
+          SLEEP_TIME=5
+          ATTEMPT=0
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Check attempt $ATTEMPT/$MAX_ATTEMPTS..."
+            
+            # Get all pods that are NOT in Running state (excluding Completed jobs)
+            NOT_RUNNING=$(kubectl get pods -n $NAMESPACE --field-selector=status.phase!=Running,status.phase!=Succeeded -o json | jq -r '.items | length')
+            
+            if [ "$NOT_RUNNING" -eq 0 ]; then
+              echo "✅ All pods are running!"
+              kubectl get pods -n $NAMESPACE -o wide
+              exit 0
+            fi
+            
+            echo "⚠️  Found $NOT_RUNNING pod(s) not running yet:"
+            kubectl get pods -n $NAMESPACE --field-selector=status.phase!=Running,status.phase!=Succeeded -o wide
+            
+            # Check for CrashLoopBackOff or ImagePullBackOff (fatal errors)
+            CRASH_PODS=$(kubectl get pods -n $NAMESPACE -o json | jq -r '.items[] | select(.status.containerStatuses != null) | select(.status.containerStatuses[].state.waiting.reason | select(. == "CrashLoopBackOff" or . == "ImagePullBackOff")) | .metadata.name')
+            
+            if [ ! -z "$CRASH_PODS" ]; then
+              echo "❌ ERROR: Pods in error state detected:"
+              echo "$CRASH_PODS"
+              echo ""
+              echo "Pod details and logs:"
+              for pod in $CRASH_PODS; do
+                echo "=== $pod ==="
+                kubectl describe pod -n $NAMESPACE $pod | tail -20
+                echo "Recent logs:"
+                kubectl logs -n $NAMESPACE $pod --tail=30 || true
+                echo ""
+              done
+              exit 1
+            fi
+            
+            echo "Waiting ${SLEEP_TIME}s before next check..."
+            sleep $SLEEP_TIME
+          done
+          
+          echo "❌ ERROR: Timeout waiting for pods to be ready"
+          kubectl get pods -n $NAMESPACE -o wide
+          exit 1
 
       - name: Verify deployment
         if: always()
         run: |
-          echo "Deployment status:"
+          echo "Final deployment status:"
           kubectl get pods -n $NAMESPACE -o wide
+          echo ""
+          echo "Recent events:"
+          kubectl get events -n $NAMESPACE --sort-by='.lastTimestamp' | tail -20

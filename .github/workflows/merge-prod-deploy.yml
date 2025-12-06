@@ -12,7 +12,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       KUBECONFIG: /tmp/kubeconfig
       NAMESPACE: shopifake-prod
@@ -60,48 +60,471 @@ jobs:
           jq -r '.services | keys[]' ${{ inputs.lock-path }} > /tmp/services.txt
           echo "Services: $(cat /tmp/services.txt | tr '\n' ' ')"
 
-      - name: Deploy databases
-        env:
-          DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
+      - name: Deploy Python service dependencies
         run: |
-          echo "TODO: Deploy databases using lock file ${{ inputs.lock-path }}"
-          # while read -r SERVICE_NAME; do
-          #   # Deploy PostgreSQL for each service
-          #   # Similar to staging but with production-grade settings
-          # done < /tmp/services.txt
+          # Deploy Redis for Python services (used by recommender for queue)
+          if ! helm list -n $NAMESPACE | grep -q "^shopifake-redis"; then
+            echo "Deploying Redis for Python services"
+            helm install shopifake-redis bitnami/redis \
+              --version 24.0.0 \
+              --namespace $NAMESPACE \
+              --set auth.enabled=false \
+              --set master.persistence.size=2Gi \
+              --set replica.replicaCount=1 \
+              --set master.resources.requests.cpu=50m \
+              --set master.resources.requests.memory=64Mi \
+              --set master.resources.limits.cpu=200m \
+              --set master.resources.limits.memory=128Mi \
+              --set replica.resources.requests.cpu=50m \
+              --set replica.resources.requests.memory=64Mi \
+              --set replica.resources.limits.cpu=200m \
+              --set replica.resources.limits.memory=128Mi \
+              --wait \
+              --timeout 5m
+            echo "Redis deployed"
+          else
+            echo "Redis already exists, skipping"
+          fi
+          
+          # Deploy Qdrant for recommender service (vector database)
+          if ! kubectl get deployment shopifake-qdrant -n $NAMESPACE &>/dev/null; then
+            echo "Deploying Qdrant vector database"
+            
+            # Check if recommender service is in the lock file
+            if grep -q "shopifake-recommender" /tmp/services.txt; then
+              RECOMMENDER_PATH=$(jq -r '.services["shopifake-recommender"].submodule_path' ${{ inputs.lock-path }})
+              
+              if [ -f "$RECOMMENDER_PATH/chart/qdrant-deployment.yaml" ]; then
+                kubectl apply -f "$RECOMMENDER_PATH/chart/qdrant-deployment.yaml"
+                
+                # Wait for Qdrant to be ready
+                kubectl wait --for=condition=ready pod -l app=shopifake-qdrant \
+                  -n $NAMESPACE --timeout=120s || true
+                
+                echo "Qdrant deployed"
+              else
+                echo "Warning: Qdrant manifest not found at $RECOMMENDER_PATH/chart/qdrant-deployment.yaml"
+              fi
+            else
+              echo "Recommender service not in lock file, skipping Qdrant"
+            fi
+          else
+            echo "Qdrant already exists, skipping"
+          fi
 
-      - name: Create configmaps
+      - name: Deploy shared PostgreSQL database
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          DB_PASSWORD_ACCESS: ${{ secrets.DB_PASSWORD_ACCESS }}
+          DB_PASSWORD_AUDIT: ${{ secrets.DB_PASSWORD_AUDIT }}
+          DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
+          DB_PASSWORD_CUSTOMERS: ${{ secrets.DB_PASSWORD_CUSTOMERS }}
+          DB_PASSWORD_INVENTORY: ${{ secrets.DB_PASSWORD_INVENTORY }}
+          DB_PASSWORD_ORDERS: ${{ secrets.DB_PASSWORD_ORDERS }}
+          DB_PASSWORD_PRICING: ${{ secrets.DB_PASSWORD_PRICING }}
+          DB_PASSWORD_SALES_DASHBOARD: ${{ secrets.DB_PASSWORD_SALES_DASHBOARD }}
+          DB_PASSWORD_SITES: ${{ secrets.DB_PASSWORD_SITES }}
+          DB_PASSWORD_CHATBOT: ${{ secrets.DB_PASSWORD_CHATBOT }}
+          DB_PASSWORD_RECOMMENDER: ${{ secrets.DB_PASSWORD_RECOMMENDER }}
+          DB_PASSWORD_AUTH_B2C: ${{ secrets.DB_PASSWORD_AUTH_B2C }}
+          DB_PASSWORD_AUTH_B2E: ${{ secrets.DB_PASSWORD_AUTH_B2E }}
+        run: |
+          # Deploy single PostgreSQL 16 instance with all databases
+          if helm list -n $NAMESPACE | grep -q "^shopifake-postgres"; then
+            echo "PostgreSQL already exists, skipping installation"
+          else
+            echo "Deploying shared PostgreSQL instance..."
+            helm install shopifake-postgres bitnami/postgresql \
+              --namespace $NAMESPACE \
+              --set auth.postgresPassword="$POSTGRES_ADMIN_PASSWORD" \
+              --set primary.persistence.size=20Gi \
+              --set primary.resources.requests.cpu=200m \
+              --set primary.resources.requests.memory=512Mi \
+              --set primary.resources.limits.cpu=1000m \
+              --set primary.resources.limits.memory=1Gi \
+              --wait \
+              --timeout 5m
+            echo "PostgreSQL deployed"
+          fi
+          
+          # Wait for PostgreSQL to be ready
+          echo "Waiting for PostgreSQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgresql \
+            -n $NAMESPACE --timeout=180s
+          
+          # Initialize databases, users and privileges
+          echo "Initializing databases..."
+          POSTGRES_POD=$(kubectl get pod -n $NAMESPACE -l app.kubernetes.io/name=postgresql -o jsonpath='{.items[0].metadata.name}')
+          
+          # List of services and their passwords (chatbot excluded)
+          declare -A SERVICES=(
+            ["access"]="$DB_PASSWORD_ACCESS"
+            ["audit"]="$DB_PASSWORD_AUDIT"
+            ["catalog"]="$DB_PASSWORD_CATALOG"
+            ["customers"]="$DB_PASSWORD_CUSTOMERS"
+            ["inventory"]="$DB_PASSWORD_INVENTORY"
+            ["orders"]="$DB_PASSWORD_ORDERS"
+            ["pricing"]="$DB_PASSWORD_PRICING"
+            ["sales_dashboard"]="$DB_PASSWORD_SALES_DASHBOARD"
+            ["sites"]="$DB_PASSWORD_SITES"
+            ["recommender"]="$DB_PASSWORD_RECOMMENDER"
+            ["auth_b2c"]="$DB_PASSWORD_AUTH_B2C"
+            ["auth_b2e"]="$DB_PASSWORD_AUTH_B2E"
+          )
+          
+          # Create databases and users
+          for service in "${!SERVICES[@]}"; do
+            db_name="shopifake_${service}_db"
+            user_name="shopifake_${service}_user"
+            password="${SERVICES[$service]}"
+            
+            echo "Setting up $service..."
+            
+            # Create user with password first
+            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
+              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
+              psql -U postgres -tc \"SELECT 1 FROM pg_user WHERE usename = '$user_name'\" | grep -q 1 || \
+              psql -U postgres -c \"CREATE USER $user_name WITH PASSWORD '$password'\"
+            "
+            
+            # Create database with user as owner
+            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
+              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
+              createdb -U postgres -O $user_name $db_name 2>/dev/null || \
+              psql -U postgres -c \"ALTER DATABASE $db_name OWNER TO $user_name\"
+            "
+            
+            # Grant schema privileges (for PostgreSQL 15+)
+            kubectl exec -n $NAMESPACE "$POSTGRES_POD" -- sh -c "
+              export PGPASSWORD='$POSTGRES_ADMIN_PASSWORD'
+              psql -U postgres -d $db_name -c \"GRANT ALL ON SCHEMA public TO $user_name\"
+            "
+          done
+          
+          echo "Database initialization complete"
+
+      - name: Create configmaps and secrets
+        env:
+          # Variables (ConfigMaps)
+          SHOPIFAKE_ACCESS_CONFIGMAP: ${{ vars.SHOPIFAKE_ACCESS_CONFIGMAP }}
+          SHOPIFAKE_AUDIT_CONFIGMAP: ${{ vars.SHOPIFAKE_AUDIT_CONFIGMAP }}
+          SHOPIFAKE_CATALOG_CONFIGMAP: ${{ vars.SHOPIFAKE_CATALOG_CONFIGMAP }}
+          SHOPIFAKE_CUSTOMERS_CONFIGMAP: ${{ vars.SHOPIFAKE_CUSTOMERS_CONFIGMAP }}
+          SHOPIFAKE_INVENTORY_CONFIGMAP: ${{ vars.SHOPIFAKE_INVENTORY_CONFIGMAP }}
+          SHOPIFAKE_ORDERS_CONFIGMAP: ${{ vars.SHOPIFAKE_ORDERS_CONFIGMAP }}
+          SHOPIFAKE_PRICING_CONFIGMAP: ${{ vars.SHOPIFAKE_PRICING_CONFIGMAP }}
+          SHOPIFAKE_SALES_DASHBOARD_CONFIGMAP: ${{ vars.SHOPIFAKE_SALES_DASHBOARD_CONFIGMAP }}
+          SHOPIFAKE_SITES_CONFIGMAP: ${{ vars.SHOPIFAKE_SITES_CONFIGMAP }}
+          SHOPIFAKE_RECOMMENDER_CONFIGMAP: ${{ vars.SHOPIFAKE_RECOMMENDER_CONFIGMAP }}
+          SHOPIFAKE_CHATBOT_CONFIGMAP: ${{ vars.SHOPIFAKE_CHATBOT_CONFIGMAP }}
+          SHOPIFAKE_AUTH_B2C_CONFIGMAP: ${{ vars.SHOPIFAKE_AUTH_B2C_CONFIGMAP }}
+          SHOPIFAKE_AUTH_B2E_CONFIGMAP: ${{ vars.SHOPIFAKE_AUTH_B2E_CONFIGMAP }}
+          # Secrets
+          SHOPIFAKE_ACCESS_SECRETS: ${{ secrets.SHOPIFAKE_ACCESS_SECRETS }}
+          SHOPIFAKE_AUDIT_SECRETS: ${{ secrets.SHOPIFAKE_AUDIT_SECRETS }}
+          SHOPIFAKE_CATALOG_SECRETS: ${{ secrets.SHOPIFAKE_CATALOG_SECRETS }}
+          SHOPIFAKE_CUSTOMERS_SECRETS: ${{ secrets.SHOPIFAKE_CUSTOMERS_SECRETS }}
+          SHOPIFAKE_INVENTORY_SECRETS: ${{ secrets.SHOPIFAKE_INVENTORY_SECRETS }}
+          SHOPIFAKE_ORDERS_SECRETS: ${{ secrets.SHOPIFAKE_ORDERS_SECRETS }}
+          SHOPIFAKE_PRICING_SECRETS: ${{ secrets.SHOPIFAKE_PRICING_SECRETS }}
+          SHOPIFAKE_SALES_DASHBOARD_SECRETS: ${{ secrets.SHOPIFAKE_SALES_DASHBOARD_SECRETS }}
+          SHOPIFAKE_SITES_SECRETS: ${{ secrets.SHOPIFAKE_SITES_SECRETS }}
+          SHOPIFAKE_RECOMMENDER_SECRETS: ${{ secrets.SHOPIFAKE_RECOMMENDER_SECRETS }}
+          SHOPIFAKE_CHATBOT_SECRETS: ${{ secrets.SHOPIFAKE_CHATBOT_SECRETS }}
+          SHOPIFAKE_AUTH_B2C_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2C_SECRETS }}
+          SHOPIFAKE_AUTH_B2E_SECRETS: ${{ secrets.SHOPIFAKE_AUTH_B2E_SECRETS }}
+          # Database passwords for building DATABASE_URL
+          DB_PASSWORD_AUTH_B2C: ${{ secrets.DB_PASSWORD_AUTH_B2C }}
+          DB_PASSWORD_AUTH_B2E: ${{ secrets.DB_PASSWORD_AUTH_B2E }}
+        run: |
+          while read -r SERVICE_NAME; do
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Skip chatbot service
+            if [[ "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (explicitly excluded)"
+              continue
+            fi
+            
+            # Handle services in services/ directory and auth services in infra/
+            if [[ ! "$SUBMODULE_PATH" == services/* ]] && [[ ! "$SUBMODULE_PATH" == infra/shopifake-auth-* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/ or auth service)"
+              continue
+            fi
+            
+            echo "=== Processing $SERVICE_NAME ==="
+            
+            # Convert service name to uppercase with underscores
+            SERVICE_NAME_UPPER=$(echo "$SERVICE_NAME" | tr '[:lower:]-' '[:upper:]_')
+            CONFIGMAP_VAR="${SERVICE_NAME_UPPER}_CONFIGMAP"
+            SECRETS_VAR="${SERVICE_NAME_UPPER}_SECRETS"
+            
+            # Get the configmap and secrets content
+            CONFIGMAP_CONTENT="${!CONFIGMAP_VAR}"
+            SECRETS_CONTENT="${!SECRETS_VAR}"
+            
+            # Validate that both are set
+            if [ -z "$CONFIGMAP_CONTENT" ]; then
+              echo "Error: $CONFIGMAP_VAR is not set"
+              exit 1
+            fi
+            
+            if [ -z "$SECRETS_CONTENT" ]; then
+              echo "Error: $SECRETS_VAR is not set"
+              exit 1
+            fi
+            
+            # Create ConfigMap
+            echo "$CONFIGMAP_CONTENT" > /tmp/configmap-${SERVICE_NAME}.env
+            kubectl create configmap "${SERVICE_NAME}-config" \
+              --from-env-file=/tmp/configmap-${SERVICE_NAME}.env \
+              --namespace $NAMESPACE \
+              --dry-run=client -o yaml | kubectl apply -f -
+            rm -f /tmp/configmap-${SERVICE_NAME}.env
+            echo "ConfigMap ${SERVICE_NAME}-config applied"
+            
+            # Create Secret
+            echo "$SECRETS_CONTENT" > /tmp/secret-${SERVICE_NAME}.env
+            
+            # Add DATABASE_URL for auth services
+            if [[ "$SERVICE_NAME" == "shopifake-auth-b2e" ]]; then
+              echo "DATABASE_URL=postgresql://shopifake_auth_b2e_user:$DB_PASSWORD_AUTH_B2E@shopifake-postgres-postgresql:5432/shopifake_auth_b2e_db" >> /tmp/secret-${SERVICE_NAME}.env
+              echo "Added DATABASE_URL to auth-b2e secret"
+            elif [[ "$SERVICE_NAME" == "shopifake-auth-b2c" ]]; then
+              echo "DATABASE_URL=postgresql://shopifake_auth_b2c_user:$DB_PASSWORD_AUTH_B2C@shopifake-postgres-postgresql:5432/shopifake_auth_b2c_db" >> /tmp/secret-${SERVICE_NAME}.env
+              echo "Added DATABASE_URL to auth-b2c secret"
+            fi
+            
+            kubectl create secret generic "${SERVICE_NAME}-secret" \
+              --from-env-file=/tmp/secret-${SERVICE_NAME}.env \
+              --namespace $NAMESPACE \
+              --dry-run=client -o yaml | kubectl apply -f -
+            rm -f /tmp/secret-${SERVICE_NAME}.env
+            echo "Secret ${SERVICE_NAME}-secret applied"
+            
+            echo ""
+          done < /tmp/services.txt
+
+      - name: Deploy services
+        run: |
+          while read -r SERVICE_NAME; do
+            # Get submodule path to filter services
+            SUBMODULE_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+            
+            # Skip chatbot service
+            if [[ "$SERVICE_NAME" == "shopifake-chatbot" ]]; then
+              echo "Skipping $SERVICE_NAME (explicitly excluded)"
+              continue
+            fi
+            
+            # Deploy services in services/ directory and auth services in infra/
+            if [[ ! "$SUBMODULE_PATH" == services/* ]] && [[ ! "$SUBMODULE_PATH" == infra/shopifake-auth-* ]]; then
+              echo "Skipping $SERVICE_NAME (not in services/ or auth service)"
+              continue
+            fi
+          
+            IMAGE_REPO=$(jq -r ".services[\"$SERVICE_NAME\"].image.repository" ${{ inputs.lock-path }})
+            IMAGE_TAG=$(jq -r ".services[\"$SERVICE_NAME\"].image.tag" ${{ inputs.lock-path }})
+            CHART_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+          
+            echo "Deploying $SERVICE_NAME"
+            echo "  Image: $IMAGE_REPO:$IMAGE_TAG"
+            echo "  Chart: $CHART_PATH/chart"
+          
+            if [ ! -d "$CHART_PATH/chart" ]; then
+              echo "Error: Chart not found at $CHART_PATH/chart"
+              exit 1
+            fi
+          
+            # Get ConfigMap hash to force restart when config changes
+            CONFIGMAP_HASH=$(kubectl get configmap "${SERVICE_NAME}-config" -n $NAMESPACE -o json 2>/dev/null | sha256sum | awk '{print $1}' || echo "")
+            
+            helm upgrade --install "$SERVICE_NAME" "$CHART_PATH/chart" \
+              --namespace $NAMESPACE \
+              --set image.repository="$IMAGE_REPO" \
+              --set image.tag="$IMAGE_TAG" \
+              --set "envFrom[0].configMapRef.name=${SERVICE_NAME}-config" \
+              --set "envFrom[1].secretRef.name=${SERVICE_NAME}-secret" \
+              --set "podAnnotations.configmap-hash=${CONFIGMAP_HASH}"
+          
+            echo "Service $SERVICE_NAME deployed"
+          done < /tmp/services.txt
+
+      - name: Verify database migrations completed
+        run: |
+          echo "Checking migration jobs status..."
+          
+          # Check for auth services migration jobs
+          for SERVICE_NAME in shopifake-auth-b2e shopifake-auth-b2c; do
+            # Find the latest migration job for this service
+            MIGRATION_JOB=$(kubectl get jobs -n $NAMESPACE -l app.kubernetes.io/name=$SERVICE_NAME,app.kubernetes.io/component=migration --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo "")
+            
+            if [ -z "$MIGRATION_JOB" ]; then
+              echo "ℹ️  No migration job found for $SERVICE_NAME (may not have been deployed)"
+              continue
+            fi
+            
+            echo "Found migration job: $MIGRATION_JOB"
+            
+            # Wait for the job to complete (max 2 minutes)
+            if kubectl wait --for=condition=complete job/$MIGRATION_JOB -n $NAMESPACE --timeout=120s 2>/dev/null; then
+              echo "✅ Migration completed successfully for $SERVICE_NAME"
+            else
+              # Check if job failed
+              FAILED=$(kubectl get job $MIGRATION_JOB -n $NAMESPACE -o jsonpath='{.status.failed}' 2>/dev/null || echo "0")
+              if [ "$FAILED" != "0" ]; then
+                echo "❌ ERROR: Migration job failed for $SERVICE_NAME"
+                echo "Job logs:"
+                kubectl logs -n $NAMESPACE job/$MIGRATION_JOB --tail=50
+                exit 1
+              else
+                echo "⚠️  Migration job status unclear for $SERVICE_NAME"
+              fi
+            fi
+          done
+          
+          echo "All database migrations verified"
+
+      - name: Create gateway configmap
         env:
           CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
           CORS_ALLOW_CREDENTIALS: ${{ secrets.CORS_ALLOW_CREDENTIALS }}
         run: |
-          echo "TODO: Create configmaps using lock file ${{ inputs.lock-path }}"
-          # while read -r SERVICE_NAME; do
-          #   kubectl create configmap "${SERVICE_NAME}-config" ...
-          # done < /tmp/services.txt
+          kubectl create configmap "shopifake-gateway-config" \
+            --from-literal=SPRING_PROFILES_ACTIVE=prod \
+            --from-literal=PORT=8080 \
+            --from-literal=CORS_ALLOWED_ORIGINS="$CORS_ALLOWED_ORIGINS" \
+            --from-literal=CORS_ALLOW_CREDENTIALS="$CORS_ALLOW_CREDENTIALS" \
+            --from-literal=SERVICE_ACCESS_URL=http://shopifake-access:8080 \
+            --from-literal=SERVICE_AUDIT_URL=http://shopifake-audit:8080 \
+            --from-literal=SERVICE_CATALOG_URL=http://shopifake-catalog:8080 \
+            --from-literal=SERVICE_CUSTOMERS_URL=http://shopifake-customers:8080 \
+            --from-literal=SERVICE_INVENTORY_URL=http://shopifake-inventory:8080 \
+            --from-literal=SERVICE_ORDERS_URL=http://shopifake-orders:8080 \
+            --from-literal=SERVICE_PRICING_URL=http://shopifake-pricing:8080 \
+            --from-literal=SERVICE_RECOMMENDER_URL=http://shopifake-recommender:8000 \
+            --from-literal=SERVICE_SALES_DASHBOARD_URL=http://shopifake-sales-dashboard:8080 \
+            --from-literal=SERVICE_SITES_URL=http://shopifake-sites:8080 \
+            --from-literal=SERVICE_CHATBOT_URL=http://shopifake-chatbot:8000 \
+            --from-literal=SERVICE_AUTH_B2C_URL=http://shopifake-auth-b2c:3000 \
+            --from-literal=SERVICE_AUTH_B2E_URL=http://shopifake-auth-b2e:3000 \
+            --namespace $NAMESPACE \
+            --dry-run=client -o yaml | kubectl apply -f -
+        
+          echo "ConfigMap shopifake-gateway-config applied"
 
-      - name: Create secrets
+      - name: Create gateway secret
         env:
-          DB_PASSWORD_CATALOG: ${{ secrets.DB_PASSWORD_CATALOG }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
         run: |
-          echo "TODO: Create secrets using lock file ${{ inputs.lock-path }}"
-          # while read -r SERVICE_NAME; do
-          #   kubectl create secret generic "${SERVICE_NAME}-secret" ...
-          # done < /tmp/services.txt
+          kubectl create secret generic "shopifake-gateway-secret" \
+            --from-literal=BETTER_AUTH_SECRET="$BETTER_AUTH_SECRET" \
+            --namespace $NAMESPACE \
+            --dry-run=client -o yaml | kubectl apply -f -
+        
+          echo "Secret shopifake-gateway-secret applied"
 
-      - name: Deploy services
+      - name: Deploy gateway
         run: |
-          echo "TODO: Deploy services using lock file ${{ inputs.lock-path }}"
-          # while read -r SERVICE_NAME; do
-          #   IMAGE_REPO=$(jq -r ".services[\"$SERVICE_NAME\"].image.repository" ${{ inputs.lock-path }})
-          #   IMAGE_TAG=$(jq -r ".services[\"$SERVICE_NAME\"].image.tag" ${{ inputs.lock-path }})
-          #   CHART_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
-          #   helm upgrade --install "$SERVICE_NAME" "$CHART_PATH/chart" ...
-          # done < /tmp/services.txt
+          SERVICE_NAME="shopifake-gateway"
+          
+          # Check if gateway exists in lock file
+          if ! jq -e ".services[\"$SERVICE_NAME\"]" ${{ inputs.lock-path }} > /dev/null; then
+            echo "Gateway not found in lock file, skipping"
+            exit 0
+          fi
+          
+          IMAGE_REPO=$(jq -r ".services[\"$SERVICE_NAME\"].image.repository" ${{ inputs.lock-path }})
+          IMAGE_TAG=$(jq -r ".services[\"$SERVICE_NAME\"].image.tag" ${{ inputs.lock-path }})
+          CHART_PATH=$(jq -r ".services[\"$SERVICE_NAME\"].submodule_path" ${{ inputs.lock-path }})
+        
+          echo "Deploying $SERVICE_NAME"
+          echo "  Image: $IMAGE_REPO:$IMAGE_TAG"
+          echo "  Chart: $CHART_PATH/chart"
+        
+          if [ ! -d "$CHART_PATH/chart" ]; then
+            echo "Error: Chart not found at $CHART_PATH/chart"
+            exit 1
+          fi
+        
+          # Get ConfigMap hash to force restart when config changes
+          CONFIGMAP_HASH=$(kubectl get configmap "${SERVICE_NAME}-config" -n $NAMESPACE -o json 2>/dev/null | sha256sum | awk '{print $1}' || echo "")
+          
+          helm upgrade --install "$SERVICE_NAME" "$CHART_PATH/chart" \
+            --namespace $NAMESPACE \
+            --set image.repository="$IMAGE_REPO" \
+            --set image.tag="$IMAGE_TAG" \
+            --set "envFrom[0].configMapRef.name=${SERVICE_NAME}-config" \
+            --set "envFrom[1].secretRef.name=${SERVICE_NAME}-secret" \
+            --set "podAnnotations.configmap-hash=${CONFIGMAP_HASH}"
+        
+          echo "Gateway $SERVICE_NAME deployed"
+
+      - name: Wait for all deployments
+        run: |
+          echo "Waiting for all deployments to be ready..."
+          kubectl wait --for=condition=available deployment --all \
+            --namespace $NAMESPACE \
+            --timeout=10m
+          echo "All deployments are available!"
+
+      - name: Verify all pods are running
+        run: |
+          echo "Verifying all pods are in Running state..."
+          
+          # Wait up to 5 minutes for all pods to be running
+          MAX_ATTEMPTS=60
+          SLEEP_TIME=5
+          ATTEMPT=0
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Check attempt $ATTEMPT/$MAX_ATTEMPTS..."
+            
+            # Get all pods that are NOT in Running state (excluding Completed jobs)
+            NOT_RUNNING=$(kubectl get pods -n $NAMESPACE --field-selector=status.phase!=Running,status.phase!=Succeeded -o json | jq -r '.items | length')
+            
+            if [ "$NOT_RUNNING" -eq 0 ]; then
+              echo "✅ All pods are running!"
+              kubectl get pods -n $NAMESPACE -o wide
+              exit 0
+            fi
+            
+            echo "⚠️  Found $NOT_RUNNING pod(s) not running yet:"
+            kubectl get pods -n $NAMESPACE --field-selector=status.phase!=Running,status.phase!=Succeeded -o wide
+            
+            # Check for CrashLoopBackOff or ImagePullBackOff (fatal errors)
+            CRASH_PODS=$(kubectl get pods -n $NAMESPACE -o json | jq -r '.items[] | select(.status.containerStatuses != null) | select(.status.containerStatuses[].state.waiting.reason | select(. == "CrashLoopBackOff" or . == "ImagePullBackOff")) | .metadata.name')
+            
+            if [ ! -z "$CRASH_PODS" ]; then
+              echo "❌ ERROR: Pods in error state detected:"
+              echo "$CRASH_PODS"
+              echo ""
+              echo "Pod details and logs:"
+              for pod in $CRASH_PODS; do
+                echo "=== $pod ==="
+                kubectl describe pod -n $NAMESPACE $pod | tail -20
+                echo "Recent logs:"
+                kubectl logs -n $NAMESPACE $pod --tail=30 || true
+                echo ""
+              done
+              exit 1
+            fi
+            
+            echo "Waiting ${SLEEP_TIME}s before next check..."
+            sleep $SLEEP_TIME
+          done
+          
+          echo "❌ ERROR: Timeout waiting for pods to be ready"
+          kubectl get pods -n $NAMESPACE -o wide
+          exit 1
 
       - name: Verify deployment
         if: always()
         run: |
-          echo "Deployment status:"
+          echo "Final deployment status:"
           kubectl get pods -n $NAMESPACE -o wide
-
+          echo ""
+          echo "Recent events:"
+          kubectl get events -n $NAMESPACE --sort-by='.lastTimestamp' | tail -20

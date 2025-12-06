@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     timeout-minutes: 15
+    # TODO: Enable chaos tests once urllib3 < 2.0 fix is deployed
+    # Currently disabled due to SSL recursion bug with kubernetes-python
+    # See: infra/shopifake-test-runner/requirements.txt (urllib3 pin)
     env:
       KUBECONFIG: /tmp/kubeconfig
       NAMESPACE: shopifake-staging
@@ -66,6 +69,9 @@ jobs:
           TEST_TIMEOUT: ${{ vars.TEST_TIMEOUT || '300' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
+          LOCUST_USERS: ${{ vars.LOCUST_USERS || '10' }}
+          LOCUST_SPAWN_RATE: ${{ vars.LOCUST_SPAWN_RATE || '2' }}
+          LOCUST_RUN_TIME: ${{ vars.LOCUST_RUN_TIME || '60s' }}
         run: |
           JOB_NAME="test-runner-$(date +%s)"
           
@@ -73,12 +79,18 @@ jobs:
           echo "  Image: ${{ steps.image.outputs.repository }}:${{ steps.image.outputs.tag }}"
           echo "  Gateway URL: $GATEWAY_URL"
           echo "  Timeout: $TEST_TIMEOUT"
+          echo "  Test Suite: LOAD ONLY (chaos tests disabled - TODO: fix urllib3 SSL bug)"
           
           helm upgrade --install "$JOB_NAME" infra/shopifake-test-runner/chart \
             --kubeconfig=$KUBECONFIG \
             --namespace $NAMESPACE \
             --set image.repository="${{ steps.image.outputs.repository }}" \
             --set image.tag="${{ steps.image.outputs.tag }}" \
+            --set-string "args[0]=--mode" \
+            --set-string "args[1]=staging" \
+            --set-string "args[2]=--suite" \
+            --set-string "args[3]=load" \
+            --set-string "args[4]=--verbose" \
             --set-string "env[0].name=BASE_URL" \
             --set-string "env[0].value=$GATEWAY_URL" \
             --set-string "env[1].name=TIMEOUT" \
@@ -87,6 +99,16 @@ jobs:
             --set-string "env[2].value=$GITHUB_TOKEN" \
             --set-string "env[3].name=GITHUB_SHA" \
             --set-string "env[3].value=$GITHUB_SHA" \
+            --set-string "env[4].name=K8S_NAMESPACE" \
+            --set-string "env[4].value=$NAMESPACE" \
+            --set-string "env[5].name=LOCUST_USERS" \
+            --set-string "env[5].value=$LOCUST_USERS" \
+            --set-string "env[6].name=LOCUST_SPAWN_RATE" \
+            --set-string "env[6].value=$LOCUST_SPAWN_RATE" \
+            --set-string "env[7].name=LOCUST_RUN_TIME" \
+            --set-string "env[7].value=$LOCUST_RUN_TIME" \
+            --set-string "env[8].name=POST_RESULTS_TO_GITHUB" \
+            --set-string "env[8].value=false" \
             --wait \
             --timeout 10m
           
@@ -156,6 +178,30 @@ jobs:
           echo "Cleaning up Job: $JOB_NAME"
           helm uninstall "$JOB_NAME" --kubeconfig=$KUBECONFIG --namespace $NAMESPACE || true
           echo "✅ Cleanup complete"
+
+      - name: Scale down staging to save resources
+        if: always()
+        run: |
+          echo "🔽 Scaling down staging environment to save resources..."
+          
+          # Scale down all deployments to 0
+          echo "Scaling down deployments..."
+          kubectl --kubeconfig=$KUBECONFIG scale deployment --all --replicas=0 -n $NAMESPACE || true
+          
+          # Scale down Redis
+          echo "Scaling down Redis..."
+          kubectl --kubeconfig=$KUBECONFIG scale statefulset shopifake-redis-master --replicas=0 -n $NAMESPACE 2>/dev/null || true
+          
+          # Scale down PostgreSQL (data persists in PVC)
+          echo "Scaling down PostgreSQL..."
+          kubectl --kubeconfig=$KUBECONFIG scale statefulset shopifake-postgres-postgresql --replicas=0 -n $NAMESPACE 2>/dev/null || true
+          
+          # Scale down Qdrant if exists
+          echo "Scaling down Qdrant..."
+          kubectl --kubeconfig=$KUBECONFIG scale deployment shopifake-qdrant --replicas=0 -n $NAMESPACE 2>/dev/null || true
+          
+          echo "✅ Staging environment scaled down (resources saved)"
+          echo "💡 Next deployment will automatically scale up via Helm"
 
       - name: Fail workflow if tests failed
         if: steps.job-status.outputs.result == 'failure' || steps.job-status.outputs.result == 'unknown'
